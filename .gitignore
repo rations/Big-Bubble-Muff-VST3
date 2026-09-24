@@ -3,7 +3,7 @@
 /build-*/
 cmake-build-*/
 
-# Release artefacts (tarballs, .deb) produced by packaging/makedist.sh & makedeb.sh
+# Release tarballs produced by packaging/makedist.sh
 /dist/
 
 # Plugin bundles

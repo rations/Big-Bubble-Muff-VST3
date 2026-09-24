@@ -33,7 +33,7 @@ the plug-in's level is therefore the pedal's own. That is loud: a Big Muff has a
 ```bash
 tar -xzf BigBubbleMuff-0.1.0-linux-x86_64.tar.gz
 cd BigBubbleMuff-0.1.0
-./install.sh          # per-user: ~/.vst3 and ~/.lv2; as root: /usr/lib/vst3 and /usr/lib/lv2
+./install.sh          # into ~/.vst3 and ~/.lv2 (run as yourself, not with sudo)
 ```
 
 `install.sh` is POSIX `sh` and works on any distribution:
@@ -43,17 +43,6 @@ cd BigBubbleMuff-0.1.0
   offers to install them.
 - `--yes` installs them without asking. `--no-deps` skips the check.
 - `./uninstall.sh` removes both bundles and keeps your presets.
-
-### Debian / Devuan package
-
-```bash
-sudo apt install ./bigbubblemuff_0.1.0_amd64.deb
-```
-
-- It installs to `/usr/lib/vst3` and `/usr/lib/lv2`.
-- It depends only on shared libraries: libc, libstdc++, cairo, FreeType and libX11.
-- It has no maintainer scripts and no systemd dependency, so it installs cleanly on Devuan and
-  other sysvinit systems.
 
 ## Build
 
@@ -94,16 +83,15 @@ scripts/lv2-gate.sh build
 clang-format --dry-run --Werror $(git ls-files '*.h' '*.cpp')
 ```
 
-### Release packages
+### Release package
 
 ```bash
 ./packaging/makedist.sh   # → dist/BigBubbleMuff-<version>-linux-<arch>.tar.gz
-./packaging/makedeb.sh    # → dist/bigbubblemuff_<version>_<arch>.deb
 ```
 
-Both scripts start from a fresh, clean Release build in `build-release/`, which they wipe and
-rebuild on every run; they never package a development build tree. The test suite and the VST3
-validator must pass in that build. The scripts then strip the binaries, and
+The script starts from a fresh, clean Release build in `build-release/`, which it wipes and
+rebuilds on every run; it never packages a development build tree. The test suite and the VST3
+validator must pass in that build. The script then strips the binaries, and
 `packaging/gate.sh` checks the packaged bundles:
 
 - Each module exports only its entry points.

@@ -1,5 +1,5 @@
 # BigBubbleMuff — the clean Release build every package is made from, sourced by
-# makedist.sh and makedeb.sh.
+# makedist.sh.
 # Copyright (C) 2026  BigBubbleMuff contributors. SPDX-License-Identifier: MIT
 #
 # Packages are never made from a developer's build tree: that tree may be stale, a

@@ -3,12 +3,12 @@
 # Copyright (C) 2026  BigBubbleMuff contributors. SPDX-License-Identifier: MIT
 #
 # POSIX sh on purpose: this must run under dash/busybox on minimal and non-systemd
-# systems (Devuan/sysvinit included). It installs the VST3 and LV2 plug-ins, and
-# checks that the required runtime libraries are present — mapping any that are
-# missing to the right package for apt, pacman, xbps or dnf.
+# systems (Devuan/sysvinit included). It installs the VST3 and LV2 plug-ins for the
+# current user, and checks that the required runtime libraries are present —
+# mapping any that are missing to the right package for apt, pacman, xbps or dnf.
 #
 # Usage:
-#   ./install.sh            user install (~/.vst3, ~/.lv2); root → /usr/lib
+#   ./install.sh            install into ~/.vst3 and ~/.lv2 (run as yourself)
 #   ./install.sh --yes      don't prompt before installing missing packages
 #   ./install.sh --no-deps  skip the runtime-dependency check entirely
 set -eu
@@ -34,14 +34,16 @@ for arg in "$@"; do
   esac
 done
 
-# --- destinations: system-wide as root, otherwise per-user --------------------
+# --- destinations: always the current user's own plug-in folders ---------------
+# Run as root, this would bury the plug-ins in /root, where no user's DAW looks.
 if [ "$(id -u)" -eq 0 ]; then
-  VST3_DIR="/usr/lib/vst3"
-  LV2_DIR="/usr/lib/lv2"
-else
-  VST3_DIR="$HOME/.vst3"
-  LV2_DIR="$HOME/.lv2"
+  echo "error: run ./install.sh as yourself, not as root or with sudo." >&2
+  echo "It installs into your own ~/.vst3 and ~/.lv2 (it asks for sudo itself only" >&2
+  echo "if runtime libraries are missing)." >&2
+  exit 1
 fi
+VST3_DIR="$HOME/.vst3"
+LV2_DIR="$HOME/.lv2"
 
 # --- runtime dependency check -------------------------------------------------
 # Each row: <soname>:<apt>:<pacman>:<xbps>:<dnf>. These are exactly the libraries

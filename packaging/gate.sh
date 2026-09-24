@@ -1,5 +1,4 @@
-# BigBubbleMuff — checks on the PACKAGED (stripped) bundles, sourced by makedist.sh
-# and makedeb.sh.
+# BigBubbleMuff — checks on the PACKAGED (stripped) bundles, sourced by makedist.sh.
 # Copyright (C) 2026  BigBubbleMuff contributors. SPDX-License-Identifier: MIT
 #
 # scripts/lv2-gate.sh and the SDK validator prove the build tree works; this proves
