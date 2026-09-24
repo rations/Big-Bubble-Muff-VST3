@@ -10,6 +10,8 @@
 
 namespace bbm {
 
+class BbmView;
+
 class Controller : public Steinberg::Vst::EditController {
 public:
   static Steinberg::FUnknown *createInstance(void *) {
@@ -19,11 +21,20 @@ public:
   Steinberg::tresult PLUGIN_API initialize(Steinberg::FUnknown *context) override;
   Steinberg::tresult PLUGIN_API setComponentState(Steinberg::IBStream *state) override;
   Steinberg::IPlugView *PLUGIN_API createView(Steinberg::FIDString name) override;
+  Steinberg::tresult PLUGIN_API setParamNormalized(
+      Steinberg::Vst::ParamID tag, Steinberg::Vst::ParamValue value) override;
+  void editorAttached(Steinberg::Vst::EditorView *editor) override;
+  void editorRemoved(Steinberg::Vst::EditorView *editor) override;
 
   OBJ_METHODS(Controller, EditController)
   DEFINE_INTERFACES
   END_DEFINE_INTERFACES(EditController)
   REFCOUNT_METHODS(EditController)
+
+private:
+  // The open editor, if any. Set and cleared on the UI thread by the SDK's
+  // EditorView attach/remove callbacks; everything that reads it runs there too.
+  BbmView *mView = nullptr;
 };
 
 } // namespace bbm

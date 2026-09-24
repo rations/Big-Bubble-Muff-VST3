@@ -5,6 +5,7 @@
 
 #include "plugin/ids.h"
 #include "plugin/state.h"
+#include "ui/bbmview.h"
 
 #include "pluginterfaces/base/ustring.h"
 
@@ -58,8 +59,34 @@ tresult PLUGIN_API Controller::setComponentState(IBStream *state) {
   return kResultOk;
 }
 
-IPlugView *PLUGIN_API Controller::createView(FIDString /*name*/) {
-  return nullptr; // editor: see src/ui/
+IPlugView *PLUGIN_API Controller::createView(FIDString name) {
+  if (name == nullptr || !FIDStringsEqual(name, Vst::ViewType::kEditor))
+    return nullptr;
+  // The host takes the one reference the view is born with (SDK contract).
+  // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+  return new BbmView(this);
+}
+
+tresult PLUGIN_API Controller::setParamNormalized(Vst::ParamID tag,
+                                                  Vst::ParamValue value) {
+  const tresult result = EditController::setParamNormalized(tag, value);
+  if (mView != nullptr)
+    mView->paramChanged(tag, getParamNormalized(tag));
+  return result;
+}
+
+void Controller::editorAttached(Vst::EditorView *editor) {
+  mView = dynamic_cast<BbmView *>(editor);
+  if (mView == nullptr)
+    return;
+  for (const ParamSpec &p : kParams)
+    mView->paramChanged(p.id, getParamNormalized(p.id));
+  mView->paramChanged(kBypassId, getParamNormalized(kBypassId));
+}
+
+void Controller::editorRemoved(Vst::EditorView *editor) {
+  if (mView == editor)
+    mView = nullptr;
 }
 
 } // namespace bbm

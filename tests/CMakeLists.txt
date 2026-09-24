@@ -5,6 +5,7 @@ set(BBM_TEST_SOURCES
   test_main.cpp
   dsp_tests.cpp
   plugin_tests.cpp
+  ui_tests.cpp
   ${CMAKE_SOURCE_DIR}/src/plugin/processor.cpp
   ${CMAKE_SOURCE_DIR}/src/plugin/controller.cpp
   ${CMAKE_SOURCE_DIR}/src/plugin/state.cpp)
@@ -25,6 +26,7 @@ target_include_directories(bbm_tests PRIVATE
 
 target_link_libraries(bbm_tests PRIVATE
   sdk
+  bbm_ui
   bbm_dsp
   BigBubbleMuff::hardening
   BigBubbleMuff::sanitize)

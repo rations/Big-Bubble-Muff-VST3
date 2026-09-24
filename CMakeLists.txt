@@ -83,6 +83,53 @@ target_link_libraries(bbm_dsp PRIVATE BigBubbleMuff::hardening BigBubbleMuff::sa
 set_source_files_properties(${BBM_DSP_SOURCES} TARGET_DIRECTORY bbm_dsp
   PROPERTIES COMPILE_OPTIONS "${BBM_WARNING_FLAGS}")
 
+# ---- The editor (Cairo + FreeType over an X11 embed window) ------------------
+# Linked dynamically from the system: none of these is vendored or pinned, and
+# none is copyleft (cairo LGPL-2.1/MPL-1.1, FreeType FTL, libX11 MIT).
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(BBM_GUI REQUIRED IMPORTED_TARGET cairo cairo-ft cairo-xlib freetype2 x11)
+
+# The art and fonts are compiled in (src/gfx/resources.h): the editor reads nothing
+# from disk. The generator is a build-host tool and is never shipped.
+add_executable(bbm_embed_resources tools/embed_resources.cpp)
+target_compile_options(bbm_embed_resources PRIVATE ${BBM_WARNING_FLAGS})
+set(BBM_RESOURCES
+  img/mufffbase.png=${CMAKE_CURRENT_SOURCE_DIR}/gui/mufffbase.png
+  img/dialknob.png=${CMAKE_CURRENT_SOURCE_DIR}/gui/dialknob.png
+  img/footswitch_up.png=${CMAKE_CURRENT_SOURCE_DIR}/gui/footswitch_up.png
+  img/footswitch_down.png=${CMAKE_CURRENT_SOURCE_DIR}/gui/footswitch_down.png
+  img/onlightmuff.png=${CMAKE_CURRENT_SOURCE_DIR}/gui/onlightmuff.png
+  img/offlightmuff.png=${CMAKE_CURRENT_SOURCE_DIR}/gui/offlightmuff.png
+  fonts/LiberationSans-BoldItalic.ttf=${CMAKE_CURRENT_SOURCE_DIR}/resources/fonts/LiberationSans-BoldItalic.ttf
+  fonts/LiberationSans-Regular.ttf=${CMAKE_CURRENT_SOURCE_DIR}/resources/fonts/LiberationSans-Regular.ttf)
+set(BBM_RESOURCE_FILES "")
+foreach(_res IN LISTS BBM_RESOURCES)
+  string(REGEX REPLACE "^[^=]*=" "" _file "${_res}")
+  list(APPEND BBM_RESOURCE_FILES "${_file}")
+endforeach()
+set(BBM_RESOURCES_CPP "${CMAKE_CURRENT_BINARY_DIR}/generated/resources.cpp")
+add_custom_command(
+  OUTPUT "${BBM_RESOURCES_CPP}"
+  COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/generated"
+  COMMAND bbm_embed_resources "${BBM_RESOURCES_CPP}" ${BBM_RESOURCES}
+  DEPENDS bbm_embed_resources ${BBM_RESOURCE_FILES}
+  COMMENT "Embedding editor art and fonts"
+  VERBATIM)
+
+set(BBM_UI_SOURCES
+  src/ui/bbmview.cpp
+  src/platform/x11plugview.cpp
+  src/gfx/canvas.cpp
+  src/gfx/fontstack.cpp
+  src/gfx/image.cpp)
+add_library(bbm_ui STATIC ${BBM_UI_SOURCES} "${BBM_RESOURCES_CPP}")
+target_include_directories(bbm_ui PUBLIC src)
+target_link_libraries(bbm_ui
+  PUBLIC sdk PkgConfig::BBM_GUI
+  PRIVATE BigBubbleMuff::hardening BigBubbleMuff::sanitize)
+set_source_files_properties(${BBM_UI_SOURCES} TARGET_DIRECTORY bbm_ui
+  PROPERTIES COMPILE_OPTIONS "${BBM_WARNING_FLAGS}")
+
 # ---- The plug-in -------------------------------------------------------------
 configure_file(src/version.h.in "${CMAKE_CURRENT_BINARY_DIR}/generated/version.h" @ONLY)
 
@@ -111,6 +158,7 @@ target_include_directories(BigBubbleMuff PRIVATE
   "${CMAKE_CURRENT_BINARY_DIR}/generated")
 target_link_libraries(BigBubbleMuff PRIVATE
   sdk
+  bbm_ui
   bbm_dsp
   BigBubbleMuff::hardening
   BigBubbleMuff::link_hardening
