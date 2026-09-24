@@ -1,24 +1,23 @@
 # Hardening.cmake — security/hardening flags exposed as an INTERFACE target.
+# SPDX-License-Identifier: MIT
 #
-# Link the `BigBubbleMuff::hardening` target into our own code (NOT into JUCE /
-# third-party targets, which may not be -Werror clean).
+# Link the `BigBubbleMuff::hardening` target into our own code (NOT into the VST 3
+# SDK's own targets, which are not -Werror clean under this warning set).
 
 add_library(bbm_hardening INTERFACE)
 add_library(BigBubbleMuff::hardening ALIAS bbm_hardening)
 
-# Strict warnings are applied PER-FILE to our own sources only (not to JUCE /
-# third-party translation units, which are not clean under these flags). Consumers
+# Strict warnings are applied PER-FILE to our own sources only (not to the SDK's
+# translation units, which are not clean under these flags). Consumers
 # attach them with: set_source_files_properties(<our.cpp> PROPERTIES
 #   COMPILE_OPTIONS "${BBM_WARNING_FLAGS}").
 option(BBM_WERROR "Treat warnings as errors in BigBubbleMuff sources" ON)
-# Note: JUCE/chowdsp headers are consumed as SYSTEM includes (see CMakeLists),
-# so these flags catch issues in OUR code without drowning in framework noise.
-# -Wpedantic / -Wdouble-promotion / -Woverloaded-virtual are intentionally
-# omitted: they fire from JUCE's public API, not from our code.
+# Note: SDK headers are consumed as SYSTEM includes (see CMakeLists), so these
+# flags catch issues in OUR code without drowning in SDK noise.
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   set(BBM_WARNING_FLAGS
-    -Wall -Wextra -Wshadow -Wnon-virtual-dtor -Wcast-align -Wunused
-    -Wnull-dereference -Wformat=2 -Wuninitialized -Wfloat-equal)
+    -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wnon-virtual-dtor -Wcast-align
+    -Wunused -Wnull-dereference -Wformat=2 -Wuninitialized -Wfloat-equal)
   if(BBM_WERROR)
     list(APPEND BBM_WARNING_FLAGS -Werror)
   endif()

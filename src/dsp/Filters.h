@@ -6,6 +6,7 @@
 // high-frequency rolloffs that surround the nonlinear clipping cores.
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 
 namespace bbm {

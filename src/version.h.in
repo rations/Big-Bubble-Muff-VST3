@@ -1,0 +1,35 @@
+// BigBubbleMuff — version and identity strings, configured by CMake from project().
+// Copyright (C) 2026  BigBubbleMuff contributors. SPDX-License-Identifier: MIT
+#pragma once
+
+#include "pluginterfaces/base/fplatform.h"
+
+#define MAJOR_VERSION_STR "@PROJECT_VERSION_MAJOR@"
+#define MAJOR_VERSION_INT @PROJECT_VERSION_MAJOR@
+#define SUB_VERSION_STR "@PROJECT_VERSION_MINOR@"
+#define SUB_VERSION_INT @PROJECT_VERSION_MINOR@
+#define RELEASE_NUMBER_STR "@PROJECT_VERSION_PATCH@"
+#define RELEASE_NUMBER_INT @PROJECT_VERSION_PATCH@
+#define BUILD_NUMBER_STR "@BBM_BUILD_NUMBER@"
+#define BUILD_NUMBER_INT @BBM_BUILD_NUMBER@
+
+#define FULL_VERSION_STR                                                                 \
+  MAJOR_VERSION_STR "." SUB_VERSION_STR "." RELEASE_NUMBER_STR "." BUILD_NUMBER_STR
+#define VERSION_STR MAJOR_VERSION_STR "." SUB_VERSION_STR "." RELEASE_NUMBER_STR
+
+#define stringPluginName "BigBubbleMuff"
+#define stringOriginalFilename "BigBubbleMuff.vst3"
+#if SMTG_PLATFORM_64
+#define stringFileDescription stringPluginName " (64Bit)"
+#else
+#define stringFileDescription stringPluginName
+#endif
+#define stringCompanyName "rations"
+#define stringCompanyWeb "https://github.com/rations/bigpimuffvst3"
+// Compiled into the binary and written into moduleinfo.json, so it is public by
+// construction: the project page, not a personal mailbox.
+#define stringCompanyEmail stringCompanyWeb
+#define stringLegalCopyright "MIT licence; see NOTICE"
+#define stringLegalTrademarks                                                            \
+  "VST is a trademark of Steinberg Media Technologies GmbH. Big Muff is a trademark "    \
+  "of Electro-Harmonix; no affiliation or endorsement is claimed."

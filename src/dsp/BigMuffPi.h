@@ -1,24 +1,26 @@
 // BigBubbleMuff — top-level DSP engine.
-// Copyright (C) 2026  BigBubbleMuff contributors. GPL-3.0-or-later (see COPYING).
+// Copyright (C) 2026  BigBubbleMuff contributors. SPDX-License-Identifier: MIT
 //
-// Models the four-stage Russian "Bubble Font" Big Muff Pi as a chain of WDF
-// sub-circuits, oversampled around the nonlinear clipping core. The public
-// interface is host-facing and real-time-safe: prepare() does all allocation,
-// process() and setParameters() never allocate, lock, or perform I/O.
+// Models the four-stage Russian "Bubble Font" Big Muff Pi, oversampled around the
+// nonlinear clipping core. The engine is mono, like the pedal: one input jack, one
+// circuit, one output jack. Down-mixing and fanning out to a host's bus is the
+// plug-in's job (src/plugin/processor.cpp).
+//
+// Real-time contract: prepare() does every allocation; process(), setControls()
+// and reset() never allocate, lock, or perform I/O. Depends on the standard
+// library only.
 #pragma once
 
-#include <juce_dsp/juce_dsp.h>
-
-#include <atomic>
+#include <cstddef>
 #include <memory>
 
 namespace bbm {
 
-// Smoothed, normalised control values handed from the message thread to audio.
+// Normalised control values handed from the plug-in to the engine.
 struct Controls {
-  float sustain = 0.75f; // 0..1, R24 drive into the clippers
-  float tone = 0.5f;     // 0..1, R23 bass<->treble blend
-  float volume = 0.5f;   // 0..1, R26 output divider
+  float sustain = 0.75f; // 0..1, R24 SUSTAIN pot
+  float tone = 0.5f;     // 0..1, R25 TONE pot
+  float volume = 0.5f;   // 0..1, R26 VOLUME pot
   float outputTrimDb = 0.0f;
   float gate = 0.4f; // 0..1 pre-gain noise gate threshold (0 = off)
 };
@@ -33,21 +35,22 @@ public:
   BigMuffPi(BigMuffPi &&) = delete;
   BigMuffPi &operator=(BigMuffPi &&) = delete;
 
-  // Allocates and sizes all state. Call from prepareToPlay (message thread).
-  void prepare(const juce::dsp::ProcessSpec &spec);
+  // Allocates and sizes all state for blocks of up to maxBlock samples, then
+  // settles the circuit. Message thread only.
+  void prepare(double sampleRate, int maxBlock);
 
-  // Resets filter/WDF state without reallocating.
+  // Resets filter/oversampler state without reallocating. Real-time-safe.
   void reset();
 
-  // Processes one block in place. The pedal is mono: the input is downmixed to a
-  // single channel, the circuit is solved once, and the result is fanned out to
-  // every output channel (dual-mono on a stereo bus). Real-time-safe.
-  void process(juce::dsp::AudioBlock<float> block);
+  // Processes n mono samples. `in` and `out` may alias. Blocks longer than the
+  // prepared size are walked in prepared-size chunks. Real-time-safe.
+  void process(const float *in, float *out, std::size_t n) noexcept;
 
   // Pushes new control values (real-time-safe; smoothed internally).
   void setControls(const Controls &c);
 
-  int getOversamplingLatencySamples() const;
+  // Oversampler group delay at DC, in base-rate samples (fractional).
+  static double latencySamples();
 
 private:
   struct Impl;

@@ -1,5 +1,5 @@
-// BigBubbleMuff — top-level DSP engine implementation (Phase B circuit model).
-// Copyright (C) 2026  BigBubbleMuff contributors. GPL-3.0-or-later (see COPYING).
+// BigBubbleMuff — top-level DSP engine implementation.
+// Copyright (C) 2026  BigBubbleMuff contributors. SPDX-License-Identifier: MIT
 //
 // Signal chain (per the schematic, see docs/netlist.md):
 //   IN -> [C1 high-pass] -> Q4 booster gain
@@ -15,14 +15,18 @@
 // output is finiteness-guarded.
 #include "dsp/BigMuffPi.h"
 
+#include "dsp/AudioMath.h"
 #include "dsp/DiodeClipper.h"
 #include "dsp/Filters.h"
 #include "dsp/Netlist.h"
 #include "dsp/NoiseGate.h"
+#include "dsp/Oversampler.h"
 #include "dsp/ToneStack.h"
 #include "dsp/TransistorStage.h"
 
+#include <algorithm>
 #include <cmath>
+#include <vector>
 
 namespace bbm {
 
@@ -45,13 +49,8 @@ constexpr float kDrive1Min = 0.005f;
 constexpr float kDrive1Max = 0.6f;
 
 inline float sustainToDrive(float sustain01) {
-  const float s = juce::jlimit(0.0f, 1.0f, sustain01);
+  const float s = std::clamp(sustain01, 0.0f, 1.0f);
   return kDrive1Min * std::pow(kDrive1Max / kDrive1Min, s);
-}
-
-// Replace non-finite samples with silence to stop NaN/Inf escaping the engine.
-inline float sanitise(float x) {
-  return std::isfinite(x) ? x : 0.0f;
 }
 
 // Per-audio-channel circuit state (no heap once constructed). The four NPN
@@ -116,38 +115,35 @@ struct Channel {
 
 struct BigMuffPi::Impl {
   double sampleRate = 44100.0;
+  std::size_t maxBlock = 0;
 
-  // The Big Muff is a mono pedal: one input jack, one circuit, one output jack.
-  // We solve a single mono circuit (the expensive Newton nodal solve) and fan the
-  // result out to however many output channels the host wants. Processing per
-  // channel would just solve the identical guitar signal twice. Hence one mono
-  // oversampler, one Channel, and a mono scratch buffer for the downmixed input.
-  std::unique_ptr<juce::dsp::Oversampling<float>> oversampler;
-  // The Channel holds WDF objects with internal references -> non-movable; own it
-  // via unique_ptr and construct in place.
+  // The Big Muff is a mono pedal, so the engine is mono: one oversampler, one
+  // Channel, and a scratch buffer for the gated input.
+  Oversampler4x oversampler;
+  // The Channel holds circuit objects with internal references -> non-movable; own
+  // it via unique_ptr and construct in place.
   std::unique_ptr<Channel> channel;
-  juce::AudioBuffer<float> monoBuf; // downmixed mono input/output, base rate
-  NoiseGate gate;                   // pre-gain input gate (base rate, pre-oversample)
+  std::vector<float> monoBuf; // gated input / output, base rate
+  NoiseGate gate;             // pre-gain input gate (base rate, pre-oversample)
 
-  juce::SmoothedValue<float> drive1{sustainToDrive(0.75f)};
-  juce::SmoothedValue<float> tone{0.5f};
-  juce::SmoothedValue<float> volume{0.5f};
-  juce::SmoothedValue<float> outputGain{1.0f};
+  LinearSmoother drive1{sustainToDrive(0.75f)};
+  LinearSmoother tone{0.5f};
+  LinearSmoother volume{0.5f};
+  LinearSmoother outputGain{1.0f};
   float gateAmount = 0.4f; // set from setControls (audio thread), applied per block
 
-  void prepare(const juce::dsp::ProcessSpec &spec) {
-    sampleRate = spec.sampleRate;
-    const double osRate = spec.sampleRate * (1 << kOversampleFactor);
+  void prepare(double fs, int maxBlockSamples) {
+    sampleRate = fs;
+    maxBlock = static_cast<std::size_t>(std::max(1, maxBlockSamples));
+    const double osRate = fs * (1 << kOversampleFactor);
 
     // One mono oversampler / circuit (see above).
-    oversampler = std::make_unique<juce::dsp::Oversampling<float>>(
-        1, kOversampleFactor, juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR);
-    oversampler->initProcessing(static_cast<size_t>(spec.maximumBlockSize));
+    oversampler.prepare(maxBlock);
 
-    monoBuf.setSize(1, static_cast<int>(spec.maximumBlockSize), false, false, true);
+    monoBuf.assign(maxBlock, 0.0f);
 
     // The gate runs on the clean mono input at the base rate, before oversampling.
-    gate.prepare(spec.sampleRate);
+    gate.prepare(sampleRate);
 
     channel = std::make_unique<Channel>();
     channel->prepare(osRate); // circuit runs at the oversampled rate
@@ -158,7 +154,7 @@ struct BigMuffPi::Impl {
     drive1.reset(osRate, smooth);
     tone.reset(osRate, smooth);
     volume.reset(osRate, smooth);
-    outputGain.reset(spec.sampleRate, smooth);
+    outputGain.reset(sampleRate, smooth);
 
     reset();
     settle();
@@ -167,8 +163,7 @@ struct BigMuffPi::Impl {
   // Cheap, real-time-safe: zero filter/oversampler state. Safe to call from a
   // host's audio-thread reset().
   void reset() {
-    if (oversampler != nullptr)
-      oversampler->reset();
+    oversampler.reset();
     if (channel != nullptr)
       channel->reset();
     gate.reset();
@@ -187,13 +182,41 @@ struct BigMuffPi::Impl {
     for (int i = 0; i < n; ++i)
       channel->process(0.0f, d, t);
   }
+
+  // One chunk of numSamp samples, guaranteed to fit the prepared block size.
+  void processChunk(const float *in, float *out, std::size_t numSamp) noexcept {
+    // The pre-gain noise gate acts on the clean input, before the high-gain stages
+    // amplify its noise floor into hiss (see NoiseGate.h).
+    gate.setAmount(gateAmount);
+    float *mono = monoBuf.data();
+    for (std::size_t n = 0; n < numSamp; ++n)
+      mono[n] = gate.process(sanitise(in[n]));
+
+    // Solve the circuit at the oversampled rate.
+    float *up = oversampler.processSamplesUp(mono, numSamp);
+    if (up == nullptr)
+      return;
+    const std::size_t upSamp = numSamp * Oversampler4x::kFactor;
+    for (std::size_t n = 0; n < upSamp; ++n) {
+      const float d = drive1.getNextValue();
+      const float t = tone.getNextValue();
+      const float vol = volume.getNextValue();
+      const float x = channel->process(sanitise(up[n]), d, t);
+      up[n] = sanitise(x * vol);
+    }
+    oversampler.processSamplesDown(mono, numSamp);
+
+    // Output trim at base rate.
+    for (std::size_t n = 0; n < numSamp; ++n)
+      out[n] = sanitise(mono[n] * outputGain.getNextValue());
+  }
 };
 
 BigMuffPi::BigMuffPi() : impl_(std::make_unique<Impl>()) {}
 BigMuffPi::~BigMuffPi() = default;
 
-void BigMuffPi::prepare(const juce::dsp::ProcessSpec &spec) {
-  impl_->prepare(spec);
+void BigMuffPi::prepare(double sampleRate, int maxBlock) {
+  impl_->prepare(sampleRate, maxBlock);
 }
 
 void BigMuffPi::reset() {
@@ -202,64 +225,30 @@ void BigMuffPi::reset() {
 
 void BigMuffPi::setControls(const Controls &c) {
   impl_->drive1.setTargetValue(sustainToDrive(c.sustain));
-  impl_->tone.setTargetValue(juce::jlimit(0.0f, 1.0f, c.tone));
-  impl_->volume.setTargetValue(juce::jlimit(0.0f, 1.0f, c.volume));
+  impl_->tone.setTargetValue(std::clamp(c.tone, 0.0f, 1.0f));
+  impl_->volume.setTargetValue(std::clamp(c.volume, 0.0f, 1.0f));
   impl_->outputGain.setTargetValue(
-      juce::Decibels::decibelsToGain(juce::jlimit(-24.0f, 24.0f, c.outputTrimDb)));
-  impl_->gateAmount = juce::jlimit(0.0f, 1.0f, c.gate);
+      decibelsToGain(std::clamp(c.outputTrimDb, -24.0f, 24.0f)));
+  impl_->gateAmount = std::clamp(c.gate, 0.0f, 1.0f);
 }
 
-int BigMuffPi::getOversamplingLatencySamples() const {
-  return impl_->oversampler != nullptr
-             ? static_cast<int>(impl_->oversampler->getLatencyInSamples())
-             : 0;
+double BigMuffPi::latencySamples() {
+  return Oversampler4x::kLatencySamples;
 }
 
-void BigMuffPi::process(juce::dsp::AudioBlock<float> block) {
-  auto &os = *impl_->oversampler;
-
-  const auto numInCh = block.getNumChannels();
-  const auto numSamp = block.getNumSamples();
-  if (numInCh == 0 || numSamp == 0)
+void BigMuffPi::process(const float *in, float *out, std::size_t numSamples) noexcept {
+  if (in == nullptr || out == nullptr || numSamples == 0)
+    return;
+  if (impl_->channel == nullptr || impl_->maxBlock == 0)
     return;
 
-  // Downmix to a single mono input (a Big Muff has one input jack). Averaging the
-  // channels keeps a mono-duplicated stereo feed identical to a true mono feed,
-  // and avoids the +6 dB a naive sum would add into the clippers. The pre-gain
-  // noise gate then acts on this clean input, before the high-gain stages amplify
-  // its noise floor into hiss (see NoiseGate.h).
-  impl_->gate.setAmount(impl_->gateAmount);
-  auto *mono = impl_->monoBuf.getWritePointer(0);
-  const float invCh = 1.0f / static_cast<float>(numInCh);
-  for (size_t n = 0; n < numSamp; ++n) {
-    float acc = 0.0f;
-    for (size_t ch = 0; ch < numInCh; ++ch)
-      acc += block.getSample(static_cast<int>(ch), static_cast<int>(n));
-    mono[n] = impl_->gate.process(sanitise(acc * invCh));
-  }
-
-  // Solve the one mono circuit at the oversampled rate.
-  juce::dsp::AudioBlock<float> monoBlock(impl_->monoBuf);
-  auto baseMono = monoBlock.getSubBlock(0, numSamp);
-  auto upMono = os.processSamplesUp(baseMono);
-  const auto upSamp = upMono.getNumSamples();
-  for (size_t n = 0; n < upSamp; ++n) {
-    const float drive1 = impl_->drive1.getNextValue();
-    const float tone = impl_->tone.getNextValue();
-    const float vol = impl_->volume.getNextValue();
-    float x = upMono.getSample(0, static_cast<int>(n));
-    x = impl_->channel->process(sanitise(x), drive1, tone);
-    upMono.setSample(0, static_cast<int>(n), sanitise(x * vol));
-  }
-  os.processSamplesDown(baseMono);
-
-  // Output trim at base rate, then fan the mono result out to every output
-  // channel (dual-mono on a stereo bus).
-  for (size_t n = 0; n < numSamp; ++n) {
-    const float g = impl_->outputGain.getNextValue();
-    const float out = sanitise(mono[n] * g);
-    for (size_t ch = 0; ch < numInCh; ++ch)
-      block.setSample(static_cast<int>(ch), static_cast<int>(n), out);
+  // Hosts must respect the block size prepare() was given, but a stray oversized
+  // block must not run past the scratch buffers — walk it in prepared-size chunks
+  // instead (still allocation-free).
+  for (std::size_t done = 0; done < numSamples;) {
+    const std::size_t n = std::min(numSamples - done, impl_->maxBlock);
+    impl_->processChunk(in + done, out + done, n);
+    done += n;
   }
 }
 
