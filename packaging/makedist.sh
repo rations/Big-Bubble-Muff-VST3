@@ -5,19 +5,19 @@
 #
 #   packaging/makedist.sh
 #
-# BBM_BUILD_DIR picks the build tree (default: build); extra configure options go in
-# BBM_CMAKE_ARGS, e.g. -DFETCHCONTENT_SOURCE_DIR_VST3SDK=/path/to/vst3sdk offline.
-# The packaged (stripped) bundles are gated by packaging/gate.sh before tarring.
+# Always packages a fresh, clean Release build (build-release/, made and tested by
+# packaging/release-build.sh), never a developer's build tree. The packaged
+# (stripped) bundles are then gated by packaging/gate.sh before tarring.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BUILD="${BBM_BUILD_DIR:-$REPO/build}"
 # shellcheck source=packaging/gate.sh
 . "$REPO/packaging/gate.sh"
+# shellcheck source=packaging/release-build.sh
+. "$REPO/packaging/release-build.sh"
 
-# shellcheck disable=SC2086
-cmake -B "$BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Release ${BBM_CMAKE_ARGS:-} -S "$REPO"
-cmake --build "$BUILD" --parallel "$(nproc)"
+bbm_release_build "$REPO"
+BUILD="$BBM_RELEASE"
 
 VERSION="$(sed -n 's/^project(BigBubbleMuff VERSION \([0-9][0-9.]*\).*/\1/p' "$REPO/CMakeLists.txt")"
 [ -n "$VERSION" ] || { echo "could not read the version from CMakeLists.txt" >&2; exit 1; }

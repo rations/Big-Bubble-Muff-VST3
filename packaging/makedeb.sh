@@ -5,18 +5,19 @@
 #
 # The package ships the VST3 plug-in (/usr/lib/vst3) and the LV2 plug-in
 # (/usr/lib/lv2). It declares only library Depends: no maintainer scripts, no
-# services, no systemd units. BBM_BUILD_DIR and BBM_CMAKE_ARGS as for makedist.sh.
+# services, no systemd units. Built from the same clean, tested Release build as
+# makedist.sh (packaging/release-build.sh).
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BUILD="${BBM_BUILD_DIR:-$REPO/build}"
 MAINTAINER="${MAINTAINER:-rations <rations@users.noreply.github.com>}"
 # shellcheck source=packaging/gate.sh
 . "$REPO/packaging/gate.sh"
+# shellcheck source=packaging/release-build.sh
+. "$REPO/packaging/release-build.sh"
 
-# shellcheck disable=SC2086
-cmake -B "$BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Release ${BBM_CMAKE_ARGS:-} -S "$REPO"
-cmake --build "$BUILD" --parallel "$(nproc)"
+bbm_release_build "$REPO"
+BUILD="$BBM_RELEASE"
 
 VERSION="$(sed -n 's/^project(BigBubbleMuff VERSION \([0-9][0-9.]*\).*/\1/p' "$REPO/CMakeLists.txt")"
 [ -n "$VERSION" ] || { echo "could not read the version from CMakeLists.txt" >&2; exit 1; }

@@ -101,14 +101,17 @@ clang-format --dry-run --Werror $(git ls-files '*.h' '*.cpp')
 ./packaging/makedeb.sh    # → dist/bigbubblemuff_<version>_<arch>.deb
 ```
 
-Both scripts build Release and strip the binaries. `packaging/gate.sh` then checks the packaged
-bundles:
+Both scripts start from a fresh, clean Release build in `build-release/`, which they wipe and
+rebuild on every run; they never package a development build tree. The test suite and the VST3
+validator must pass in that build. The scripts then strip the binaries, and
+`packaging/gate.sh` checks the packaged bundles:
 
 - Each module exports only its entry points.
 - Each links only its allowed libraries. The LV2 audio half links nothing but the C/C++ runtime.
 - RELRO, BIND_NOW and a non-executable stack are set.
 
-`BBM_BUILD_DIR` picks the build tree, and `BBM_CMAKE_ARGS` passes extra configure options.
+The VST3 SDK is fetched at the pinned commit. To build offline, set `BBM_VST3SDK` to a local copy
+of that commit; `~/third_party/vst3sdk` is used automatically when it exists.
 
 ### The SPICE reference
 
