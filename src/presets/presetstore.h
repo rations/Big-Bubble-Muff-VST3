@@ -5,9 +5,8 @@
 // runs on the UI / message thread, never from process().
 //
 // Location: ~/.config/BigBubbleMuff/Presets, one "<name>.bbmpreset" per preset.
-// The directory is found from $HOME, the variable the JUCE build's
-// userApplicationDataDirectory resolved "~" from; nothing else in the environment
-// is read. Directories this code creates are 0700 and files 0600.
+// The directory is found from $HOME; nothing else in the environment is read. Directories
+// this code creates are 0700 and files 0600.
 //
 // Format (plain text, UTF-8, LF or CRLF):
 //

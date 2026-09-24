@@ -5,7 +5,7 @@
 // resources/fonts/ are turned into arrays at build time by
 // tools/embed_resources.cpp (see CMakeLists.txt), which defines findResource().
 // This keeps CLAUDE.md §4's rule that the user-preset directory is the plug-in's
-// only filesystem access, exactly as the JUCE build's BinaryData did.
+// only filesystem access.
 //
 // The bytes have static storage duration, which FreeType relies on: a face made
 // with FT_New_Memory_Face reads straight out of them for as long as it lives.

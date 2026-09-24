@@ -4,11 +4,9 @@
 //
 // Adapted from the owner's rations-pedals src/gfx/fontstack.h (MIT).
 //
-// Liberation Sans (SIL OFL 1.1, resources/fonts/OFL.txt) is the face the JUCE
-// build drew with on this machine: JUCE's Linux default sans-serif is the first of
-// "Verdana", "Bitstream Vera Sans", "Luxi Sans", "Liberation Sans", ... that is
-// installed (juce_Fonts_linux.cpp, getDefaultSansSerifFontName), and here that is
-// Liberation Sans. Bold Italic is the wordmark, Regular the preset bar.
+// Liberation Sans (SIL OFL 1.1, resources/fonts/OFL.txt) is the face the earlier,
+// framework-based editor drew with on the development machine, so the art looks
+// as it did. Bold Italic is the wordmark, Regular the preset bar.
 //
 // If a face fails to load, a Cairo "toy" face of the same style stands in so text
 // still renders.

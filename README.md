@@ -1,69 +1,67 @@
 # BigBubbleMuff
 
-A native **Linux VST3 + Standalone** emulation of the Russian **"Bubble Font" Big
-Muff Pi** fuzz/distortion (schematic versions V7C Green/Black Russian and V8 Small
-Box Black Russian — circuit-identical). Built in C++20 with [JUCE](https://juce.com)
-and a full **Wave Digital Filter** circuit model via
-[chowdsp_wdf](https://github.com/Chowdhury-DSP/chowdsp_wdf).
+A native Linux **VST3** and **LV2** emulation of the Russian **"Bubble Font" Big Muff Pi**
+fuzz. The schematic covers the V7C Green/Black Russian and the V8 Small Box Black Russian,
+which have the same circuit.
 
-The three pedal controls — **Sustain**, **Tone**, **Volume** — behave like the
-real pedal because the model is derived from the actual schematic netlist
-([docs/netlist.md](docs/netlist.md)), not a generic distortion curve. Two utility
-controls — an **Output** trim and a pre-gain **Gate** — sit alongside them.
+The engine simulates the **whole pedal as one circuit**. Every resistor, capacitor, transistor
+and diode of the schematic, from the input jack to the Volume wiper, is solved together as a
+nodal DK state-space model at 4× the host rate. The netlist is
+[docs/netlist.md](docs/netlist.md). The model has no per-stage shortcut and no voicing curve,
+and it is checked against ngspice (see [docs/circuit-model.md](docs/circuit-model.md)).
+
+**Sustain**, **Tone** and **Volume** are the pedal's three pots, modelled as the real 100 k
+potentiometers. Two plug-in controls sit alongside them: an **Output** trim, and a pre-gain
+**Gate** for noisy pickups. A **footswitch** on the art switches the pedal in and out, and the
+host's bypass works independently of it.
+
+A digital sample of 1.0 is 1 V at the input jack, and 1 V at the output jack. At full Volume,
+the plug-in's level is therefore the pedal's own. That is loud: a Big Muff has a lot of gain.
 
 ## Interface
-- Skinned pedal editor (faceplate + rotary knobs + indicator LED + footswitch).
-- **Resizable** window with the artwork's aspect ratio locked.
-- A slim top bar with a **preset** dropdown: save and recall knob positions. User
-  presets are stored as plain `.xml` files under `~/.config/BigBubbleMuff/Presets`.
-- The **Standalone** app adds a native titlebar and a File/Help menu
-  (`Preferences` → audio device settings, `About`).
 
-## Status
-Phased build:
-- **Phase A** — per-stage WDF model with WDF diode-pair clippers, input booster,
-  passive tone stack and output recovery. **Complete & verified**: builds clean,
-  tests pass, pluginval strictness 10 passes, ASan/UBSan clean, binary hardened
-  (Full RELRO / NX / PIE / stack canaries).
-- **Phase B** — joint BJT+diode R-type nonlinear roots for maximum fidelity
-  (planned).
+- **The editor:** a skinned pedal with rotary knobs, an indicator LED and a footswitch.
+  - It is drawn with Cairo and FreeType into an X11 window.
+  - It resizes with the art's aspect ratio locked, from 0.5× to 2×.
+- **Knobs:** drag to turn, and hold Shift for fine control. The mouse wheel works too.
+- **The preset bar:** save, recall and delete knob positions.
+  - Presets are plain-text `.bbmpreset` files in `~/.config/BigBubbleMuff/Presets`.
+  - That folder is the only place the plug-in reads or writes. It never touches the network.
 
 ## Install (pre-built release)
 
-Download `BigBubbleMuff-<version>-linux-<arch>.tar.gz` from the Releases page and
-extract it:
-
 ```bash
-tar -xzf BigBubbleMuff-0.1.0-linux-x86_64.tar.gz
-cd BigBubbleMuff-0.1.0
-./install.sh          # per-user (~/.vst3, ~/.local/bin); run as root for system-wide
+tar -xzf BigBubbleMuff-1.0.0-linux-x86_64.tar.gz
+cd BigBubbleMuff-1.0.0
+./install.sh          # per-user: ~/.vst3 and ~/.lv2; as root: /usr/lib/vst3 and /usr/lib/lv2
 ```
 
-`install.sh` is POSIX `sh` and distro-agnostic: it checks that the required
-runtime libraries are present and, if any are missing, prints the exact package
-list for your package manager (**apt**, **pacman**, **xbps**, **dnf**) and offers
-to install them. Flags: `--yes` (don't prompt before installing packages),
-`--no-deps` (skip the check). Remove everything again with `./uninstall.sh`.
+`install.sh` is POSIX `sh` and works on any distribution:
 
-The standalone also gets a `bigbubblemuff.desktop` entry so it appears in your
-application menu.
+- It checks for the three runtime libraries: cairo, FreeType and libX11.
+- If any are missing, it names the packages for **apt**, **pacman**, **xbps** or **dnf**, and
+  offers to install them.
+- `--yes` installs them without asking. `--no-deps` skips the check.
+- `./uninstall.sh` removes both bundles and keeps your presets.
 
 ### Debian / Devuan package
 
-A `.deb` is provided for Debian, Ubuntu and derivatives. It has **no systemd
-dependency**, so it installs cleanly on **Devuan** and other sysvinit systems:
-
 ```bash
-sudo apt install ./bigbubblemuff_0.1.0_amd64.deb
+sudo apt install ./bigbubblemuff_1.0.0_amd64.deb
 ```
 
-This installs the VST3 to `/usr/lib/vst3`, the standalone to `/usr/bin`, and only
-pulls in shared-library dependencies (ALSA, freetype, fontconfig, X11).
+- It installs to `/usr/lib/vst3` and `/usr/lib/lv2`.
+- It depends only on shared libraries: libc, libstdc++, cairo, FreeType and libX11.
+- It has no maintainer scripts and no systemd dependency, so it installs cleanly on Devuan and
+  other sysvinit systems.
 
 ## Build
 
-Requirements: CMake ≥ 3.25, a C++20 compiler (GCC 14 / Clang), Ninja, and Linux
-audio/GUI dev packages (ALSA, X11, freetype, fontconfig).
+**Requirements:**
+
+- CMake ≥ 3.25, Ninja, and a C++20 compiler (GCC 14 or Clang).
+- The development packages for cairo, FreeType, X11 and LV2 (≥ 1.18).
+- lilv-0, optional: it enables the LV2 check tool.
 
 ```bash
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -71,39 +69,82 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-Artefacts:
-- VST3 → `build/BigBubbleMuff_artefacts/Release/VST3/BigBubbleMuff.vst3`
-  (also copied to `~/.vst3`).
-- Standalone → `build/BigBubbleMuff_artefacts/Release/Standalone/BigBubbleMuff`.
+The build writes:
 
-Offline / pinned-local JUCE:
-`-DFETCHCONTENT_SOURCE_DIR_JUCE=/path/to/JUCE` (JUCE 8.0.13 checkout).
+- `build/VST3/Release/BigBubbleMuff.vst3`
+- `build/lv2/BigBubbleMuff.lv2`
 
-### Building release packages
+The VST3 SDK is fetched at the pinned commit. To build offline, pass
+`-DFETCHCONTENT_SOURCE_DIR_VST3SDK=/path/to/vst3sdk`, pointing at a checkout of the same commit.
+
+### Checks
+
+```bash
+# Sanitizers: tests under ASan + UBSan
+cmake -B build-asan -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBBM_SANITIZE=ON && cmake --build build-asan
+ctest --test-dir build-asan --output-on-failure
+
+# The Steinberg validator
+build/bin/Release/validator build/VST3/Release/BigBubbleMuff.vst3
+
+# LV2: exports and hardening, lilv load/run/state, and sord_validate
+scripts/lv2-gate.sh build
+
+# Formatting
+clang-format --dry-run --Werror $(git ls-files '*.h' '*.cpp')
+```
+
+### Release packages
 
 ```bash
 ./packaging/makedist.sh   # → dist/BigBubbleMuff-<version>-linux-<arch>.tar.gz
 ./packaging/makedeb.sh    # → dist/bigbubblemuff_<version>_<arch>.deb
 ```
 
-`makedist.sh` builds Release, strips the binaries, and stages the VST3,
-standalone, `install.sh`/`uninstall.sh`, desktop entry, icon and `COPYING` into a
-tarball. `makedeb.sh` builds the systemd-free `.deb` (override the package
-maintainer with the `MAINTAINER` env var).
+Both scripts build Release and strip the binaries. `packaging/gate.sh` then checks the packaged
+bundles:
+
+- Each module exports only its entry points.
+- Each links only its allowed libraries. The LV2 audio half links nothing but the C/C++ runtime.
+- RELRO, BIND_NOW and a non-executable stack are set.
+
+`BBM_BUILD_DIR` picks the build tree, and `BBM_CMAKE_ARGS` passes extra configure options.
+
+### The SPICE reference
+
+`tools/spice/gen_goldens.sh` re-runs [docs/spice/bigmuff.cir](docs/spice/bigmuff.cir) in
+ngspice. It writes the golden data in `tests/data/spice/`, which the circuit tests compare
+against. `bbm_render in.wav out.wav` (with `--sustain`, `--tone` and the other knobs) renders
+audio through the engine offline.
 
 ## Dependencies (pinned by tag + SHA)
-| Dependency  | Version | Commit                                     |
-|-------------|---------|--------------------------------------------|
-| JUCE        | 8.0.13  | `7c9d3783b127263d72bb65fe0a7e2dc8a02a7ac2` |
-| chowdsp_wdf | v1.0.0  | `36b5775555af21f0f417d2bc866ba7b4b2788614` |
-| VST3 SDK    | 3.8     | local: `/home/human/third_party/vst3sdk`   |
 
-## License
-**GPLv3-or-later** — see [COPYING](COPYING). JUCE is used under its GPLv3 option;
-chowdsp_wdf is BSD-3; the Steinberg VST3 SDK under its GPLv3-compatible terms.
+| Dependency | Version | Commit |
+|---|---|---|
+| VST3 SDK | v3.8.0_build_66 | `9fad9770f2ae8542ab1a548a68c1ad1ac690abe0` |
+
+cairo, FreeType, libX11 and the LV2 headers come from the system.
+
+## Licence
+
+**MIT**: see [LICENSE](LICENSE). The third-party notices are in [NOTICE](NOTICE):
+
+- the VST3 SDK (MIT)
+- the LV2 headers (ISC)
+- the ngspice junction limiter (Modified BSD)
+- the Liberation Sans fonts (SIL OFL 1.1)
+- the dynamically linked system libraries
+
+Earlier revisions of this repository were GPL-3.0-or-later, while they linked JUCE.
 
 ## Credits / trademarks
-Schematic traced by **Kit Rae** ([BigMuffPage](https://www.bigmuffpage.com)).
-Circuit analysis reference: ElectroSmash "Big Muff Pi Analysis". "Big Muff" is a
-trademark of Electro-Harmonix and "VST" of Steinberg Media Technologies GmbH; this
-is an independent emulation with no affiliation or endorsement.
+
+The schematic was traced by **Kit Rae** ([BigMuffPage](https://www.bigmuffpage.com)). The
+circuit analysis references are:
+
+- ElectroSmash, "Big Muff Pi Analysis"
+- D. Yeh's 2009 Stanford thesis
+- Holters & Zölzer, DAFx-11 and EUSIPCO 2015
+
+"Big Muff" is a trademark of Electro-Harmonix, and "VST" of Steinberg Media Technologies GmbH.
+BigBubbleMuff is an independent emulation, with no affiliation or endorsement.

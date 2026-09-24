@@ -1,7 +1,7 @@
 # BigBubbleMuff — native Linux VST3 emulation of the Russian "Bubble Font" Big Muff Pi.
 # Copyright (C) 2026  BigBubbleMuff contributors. SPDX-License-Identifier: MIT
 #
-# A raw Steinberg VST 3 plug-in: no JUCE, no VSTGUI, no framework.
+# A raw Steinberg VST 3 plug-in: no VSTGUI, no application framework.
 #
 # Dependencies are pinned by tag AND commit SHA (supply-chain traceability):
 #   VST 3 SDK  v3.8.0_build_66  9fad9770f2ae8542ab1a548a68c1ad1ac690abe0  (MIT)

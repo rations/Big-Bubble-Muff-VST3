@@ -1,9 +1,9 @@
 // BigBubbleMuff — half-band polyphase-IIR designer (development host tool).
 // Copyright (C) 2026  BigBubbleMuff contributors. SPDX-License-Identifier: MIT
 //
-// Designs the two half-band filters used by the Haiku build's 4x oversampler and
-// prints them as a ready-to-paste constexpr table. Standard library only: no JUCE,
-// no third-party code, nothing GPL. Run on the development host, never shipped.
+// Designs the two half-band filters used by the 4x oversampler (src/dsp/Oversampler.h)
+// and prints them as a ready-to-paste constexpr table. Standard library only, no
+// third-party code. Run on the development host, never shipped.
 //
 // Structure (the classic two-path polyphase half-band, Valenzuela-Constantinides
 // form found in any multirate text):
@@ -78,8 +78,8 @@ Complex response(const HalfBand &hb, double omega) {
   return 0.5 * (allpassChain(hb.direct, wInv) + zInv * allpassChain(hb.delayed, wInv));
 }
 
-// JUCE reports oversampler latency as -phase(w0)/w0 at a near-DC probe (normalised
-// frequency 1e-4). Use the identical probe so the two builds' numbers compare.
+// Latency is the phase delay -phase(w0)/w0 at a near-DC probe (normalised frequency
+// 1e-4): the delay a host must compensate for low-frequency content.
 double dcDelaySamples(const HalfBand &hb) {
   constexpr double kProbe = 0.0001; // cycles/sample
   const double omega = 2.0 * kPi * kProbe;
@@ -360,9 +360,9 @@ void run(const std::string &name, double tw, double targetDb, std::mt19937 &rng)
 
 int main() {
   std::mt19937 rng(20260729);
-  // The four specifications the Linux build's 4x oversampler is configured for, so
-  // that the Haiku engine's anti-alias filtering matches it rather than merely
-  // resembling it. Each 2x stage uses a tighter filter going up than coming down.
+  // The four specifications of the 4x oversampler (normalised transition width,
+  // stop-band attenuation in dB). Each 2x stage uses a tighter filter going up than
+  // coming down.
   run("Stage0Up", 0.05, 90.0, rng);   // base rate -> 2x
   run("Stage0Down", 0.06, 75.0, rng); // 2x -> base rate
   run("Stage1Up", 0.10, 80.0, rng);   // 2x -> 4x

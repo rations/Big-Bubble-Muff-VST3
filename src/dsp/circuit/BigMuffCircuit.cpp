@@ -80,9 +80,11 @@ const double kVcritF = kVtF * std::log(kVtF / (std::sqrt(2.0) * kBjtModel.is));
 const double kVcritR = kVtR * std::log(kVtR / (std::sqrt(2.0) * kBjtModel.is));
 const double kVcritD = kVtD * std::log(kVtD / (std::sqrt(2.0) * kDiodeModel.is));
 
-// SPICE3's pn-junction step limiter, as in ngspice-47 devsup.c DEVpnjlim: a forward
-// step larger than 2 N Vt above the critical voltage is compressed logarithmically,
-// and a reverse step is bounded. A convergence aid only; the solution is unchanged.
+// SPICE3's pn-junction step limiter, following ngspice-47 devsup.c DEVpnjlim
+// (Copyright 1990 Regents of the University of California; Modified BSD licence,
+// reproduced in NOTICE): a forward step larger than 2 N Vt above the critical
+// voltage is compressed logarithmically, and a reverse step is bounded. A
+// convergence aid only; the solution is unchanged.
 inline double pnjlim(double vnew, double vold, double vt, double vcrit,
                      bool &limited) noexcept {
   if (vnew > vcrit && std::fabs(vnew - vold) > vt + vt) {

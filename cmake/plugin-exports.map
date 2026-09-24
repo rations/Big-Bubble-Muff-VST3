@@ -1,4 +1,5 @@
 /* The complete export list of BigBubbleMuff.so.
+ * SPDX-License-Identifier: MIT
  *
  * -fvisibility=hidden keeps our own code out of the dynamic symbol table and
  * --exclude-libs,ALL keeps the static SDK archives out, but neither reaches

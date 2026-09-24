@@ -1,5 +1,5 @@
 # BigBubbleMuff static-analysis configuration (security/bug focus).
-# Scoped to our own sources (third-party/JUCE headers are filtered out below).
+# Scoped to our own sources (third-party headers are filtered out below).
 #
 # Intentionally limited to the families that find *bugs* and security issues —
 # bugprone, cert, cppcoreguidelines, clang-analyzer.

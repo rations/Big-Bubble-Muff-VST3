@@ -1,4 +1,6 @@
-* DC operating point of the Big Muff (knobs do not affect DC: every pot is AC-coupled).
+* DC operating point of the Big Muff. Sustain and Volume are AC-coupled and carry no DC;
+* Tone is DC-coupled through R8 and R5, so it moves t1-t3 (and nothing else).
+* SPDX-License-Identifier: MIT
 .include bigmuff.cir
 .include models-em.lib
 VCC VCC 0 9

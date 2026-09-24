@@ -1,0 +1,175 @@
+BigBubbleMuff — a Russian "Bubble Font" Big Muff Pi emulation, VST3 and LV2, for Linux
+Copyright (c) 2026 rations
+
+BigBubbleMuff is released under the MIT Licence; see LICENSE. That covers:
+
+  - the circuit model (src/dsp/)
+  - the VST3 integration (src/plugin/) and the LV2 wrapper (src/lv2/)
+  - the editor (src/ui/, src/gfx/, src/platform/) and the presets (src/presets/)
+  - the tools, tests, SPICE decks and golden data
+  - the art in gui/
+
+The third-party components it links, compiles in or redistributes are covered by the
+licences below.
+
+Earlier revisions of this repository were GPL-3.0-or-later, because they linked JUCE.
+JUCE and everything that depended on it has been removed. rations is the sole author
+and copyright holder of every file (git shortlog), and has relicensed the work MIT.
+
+-------------------------------------------------------------------------------
+
+Used under the MIT Licence:
+
+  VST 3 SDK 3.8.0 (v3.8.0_build_66)     https://github.com/steinbergmedia/vst3sdk
+  Copyright (c) 2025, Steinberg Media Technologies GmbH
+
+  Compiled into both plug-ins: base, pluginterfaces and public.sdk, including the
+  host-side helpers the LV2 wrapper drives the processor with. The full licence
+  text is in the SDK's LICENSE.txt, and it is the same MIT text as this project's
+  LICENSE. VST is a trademark of Steinberg Media Technologies GmbH, registered in
+  Europe and other countries.
+
+-------------------------------------------------------------------------------
+
+Used under the ISC Licence:
+
+  LV2 1.18.10 headers                   https://lv2plug.in/
+  Copyright 2000-2002 Richard W.E. Furse, Paul Barton-Davis, Stefan Westerfeld.
+  Copyright 2006-2020 David Robillard, Steve Harris, Lars Luthman, and others
+  (see each header).
+
+  Compiled into the LV2 modules: core, ui, state, atom, urid, options and
+  buf-size.
+
+  Permission to use, copy, modify, and/or distribute this software for any
+  purpose with or without fee is hereby granted, provided that the above
+  copyright notice and this permission notice appear in all copies.
+
+  THIS SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+  WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+  MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+  ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+  WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+  ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+  OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+-------------------------------------------------------------------------------
+
+Used under the Modified BSD Licence:
+
+  ngspice-47 (a80f6e3e95d51534905b1f23410a951802666656)  https://ngspice.sourceforge.io/
+  Copyright 1985 - 2018, Regents of the University of California and others
+
+  The circuit solver's pn-junction step limiter (pnjlim() in
+  src/dsp/circuit/BigMuffCircuit.cpp) follows DEVpnjlim in ngspice-47
+  src/spicelib/devices/devsup.c (Copyright 1990 Regents of the University of
+  California). Nothing else from ngspice is in the plug-ins. ngspice is otherwise
+  only the offline reference that produced tests/data/spice/, from this
+  project's own decks in docs/spice/; it is never linked or shipped.
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions are met:
+
+  1. Redistributions of source code must retain the above copyright notice,
+  this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+  3. Neither the name of the copyright holder nor the names of its
+  contributors may be used to endorse or promote products derived from this
+  software without specific prior written permission.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+  POSSIBILITY OF SUCH DAMAGE.
+
+-------------------------------------------------------------------------------
+
+Linked system libraries (the distribution's own shared libraries, linked
+dynamically; none is vendored or shipped):
+
+  cairo              https://cairographics.org/       LGPL 2.1 OR MPL 1.1.
+  FreeType           https://freetype.org/            FTL OR GPLv2 (dual).
+  libX11             https://x.org/                   MIT.
+
+  Through cairo, fontconfig (MIT), pixman (MIT), libpng (libpng licence) and zlib
+  (zlib licence) are loaded as well. The LV2 audio module links none of these;
+  only the editor does.
+
+  FreeType is used under the FreeType Licence (FTL), not the GPLv2 arm of its
+  dual licence. This notice is the FTL's credit: portions of this software are
+  copyright (c) 1996-2024 The FreeType Project (www.freetype.org). All rights
+  reserved.
+
+  cairo is linked dynamically, which the LGPL 2.1 permits without further
+  conditions.
+
+-------------------------------------------------------------------------------
+
+Bundled fonts (resources/fonts/, compiled into the editor):
+
+  LiberationSans-BoldItalic.ttf, LiberationSans-Regular.ttf
+  Digitized data copyright (c) 2010 Google Corporation
+      with Reserved Font Arimo, Tinos and Cousine.
+  Copyright (c) 2012 Red Hat, Inc.
+      with Reserved Font Name Liberation.
+  SIL Open Font License 1.1; the full text is resources/fonts/OFL.txt.
+
+  The wordmark is drawn in Bold Italic, and the preset bar in Regular.
+
+-------------------------------------------------------------------------------
+
+Pedal art and the scripts that produce it (gui/):
+
+  Copyright (c) 2026 rations. MIT Licence, as part of this project.
+
+  - mufffbase.png, dialknob.png, footswitch_up.png, footswitch_down.png,
+    onlightmuff.png and offlightmuff.png, all committed by the author.
+  - gui/make_knob.sh and gui/make_footswitch.sh, the ImageMagick 7 pipelines
+    behind the knob and footswitch.
+
+  Both scripts carried the GPL-3 header of this repository's former licence. They
+  contain no JUCE code; the one mention of JUCE was a comment explaining why the
+  knob must be centred before it is rotated. The author has relicensed them MIT.
+
+-------------------------------------------------------------------------------
+
+Reference material (not distributed, not compiled):
+
+  The circuit and its values come from the schematic traced by Kit Rae
+  (BigMuffPage) and are transcribed in docs/netlist.md, cross-checked against
+  ElectroSmash's "Big Muff Pi Analysis". The solver follows published analysis:
+
+    - D. T. Yeh, "Digital Implementation of Musical Distortion Circuits by
+      Analysis and Simulation", PhD thesis, Stanford, 2009 (sec. 4.5, the DK
+      method)
+    - M. Holters and U. Zolzer, DAFx-11 (pots as variable parts)
+    - M. Holters and U. Zolzer, EUSIPCO 2015 (the generalised DK derivation)
+
+  The device parameters in docs/spice/ and src/dsp/circuit/Netlist.h are the
+  published BC547C (Philips) and 1N914 (onsemi) SPICE model values, taken from
+  the LTspice standard library.
+
+  docs/circuit-model.md compares the engine against a NAM capture, rendered with
+  NeuralAmpModelerCore (MIT). Neither is part of this project.
+
+  No source code from any of these is present, apart from the ngspice limiter
+  credited above.
+
+-------------------------------------------------------------------------------
+
+Trademarks:
+
+  "Big Muff" and "Big Muff Pi" are trademarks of Electro-Harmonix. "VST" is a
+  trademark of Steinberg Media Technologies GmbH. BigBubbleMuff is an independent
+  emulation, and claims no affiliation with or endorsement by either.

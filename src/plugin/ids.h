@@ -17,9 +17,9 @@
 
 namespace bbm {
 
-// Class UIDs (uuidgen, 2026-09-24). Deliberately NOT the JUCE build's IDs: this
-// plug-in is a clean break, and a project saved with the JUCE build keeps opening
-// that build.
+// Class UIDs (uuidgen, 2026-09-24). Deliberately NOT the earlier framework-based
+// build's IDs: this plug-in is a clean break, and a project saved with that build
+// keeps opening that build.
 static DECLARE_UID(kProcessorUID, 0xCCA2A445, 0xD6B14FF4, 0xB5D425C4, 0xDA71F390);
 static DECLARE_UID(kControllerUID, 0x8489E881, 0xC15C416B, 0xB6954F76, 0x83A3387D);
 
@@ -47,7 +47,7 @@ struct ParamSpec {
 };
 
 // In ID order. The footswitch defaults ON: a fresh instance is a pedal that is
-// switched in, as the JUCE build was.
+// switched in, as the earlier build was.
 inline constexpr std::array<ParamSpec, 6> kParams{{
     {kSustainId, "Sustain", nullptr, ParamKind::Range, 0.0, 1.0, 0.75, 2},
     {kToneId, "Tone", nullptr, ParamKind::Range, 0.0, 1.0, 0.5, 2},

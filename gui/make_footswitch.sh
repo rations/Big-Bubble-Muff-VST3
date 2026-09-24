@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # BigBubbleMuff — generate chrome stompbox footswitch art (ImageMagick 7).
-# Copyright (C) 2026  BigBubbleMuff contributors. GPL-3.0-or-later (see COPYING).
+# Copyright (C) 2026  BigBubbleMuff contributors. SPDX-License-Identifier: MIT
 #
 # Produces two registered RGBA PNGs (transparent outside the button):
 #   footswitch_up.png    raised button   -> pedal BYPASSED (off)

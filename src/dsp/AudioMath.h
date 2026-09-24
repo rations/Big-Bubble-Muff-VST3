@@ -1,8 +1,8 @@
 // BigBubbleMuff — small audio utilities for the circuit engine.
 // Copyright (C) 2026  BigBubbleMuff contributors. SPDX-License-Identifier: MIT
 //
-// The handful of facilities the engine once took from juce_dsp, written against the
-// standard library alone so the circuit model has no framework dependency.
+// The handful of facilities the engine needs around the circuit, written against the
+// standard library alone so the DSP has no framework dependency.
 #pragma once
 
 #include <algorithm>
@@ -21,8 +21,8 @@ inline float sanitise(float x) {
   return std::isfinite(x) ? x : 0.0f;
 }
 
-// Tolerant float comparison, matching what juce::SmoothedValue uses to decide a
-// new target is really new: equal within one epsilon, relative to magnitude.
+// Tolerant float comparison, used to decide a new smoother target is really new:
+// equal within one epsilon, relative to magnitude.
 inline bool approximatelyEqual(float a, float b) {
   if (!(std::isfinite(a) && std::isfinite(b)))
     return std::isnan(a) == std::isnan(b) && std::signbit(a) == std::signbit(b) &&
@@ -33,8 +33,7 @@ inline bool approximatelyEqual(float a, float b) {
              std::numeric_limits<float>::epsilon() * std::max(std::abs(a), std::abs(b));
 }
 
-// Linear parameter ramp, matching juce::SmoothedValue<float> (whose default
-// smoothing type is Linear): reset() fixes the ramp length in samples, a new
+// Linear parameter ramp: reset() fixes the ramp length in samples, a new
 // target restarts the ramp from wherever the value currently is, and the value
 // lands exactly on the target on the final step.
 class LinearSmoother {
