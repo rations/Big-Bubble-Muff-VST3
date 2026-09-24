@@ -42,7 +42,7 @@ inline constexpr const char *kPluginClassUri =
 // such plugins to users by default", and LV2 has no major version. rations-amp maps
 // by doubling (always even) and asserts MAJOR == 0; this project is already at 1.x,
 // so MAJOR is folded into the minor number: minor = 2 * (1000 * MAJOR + MINOR),
-// micro = 2 * PATCH. Even by construction, never zero for 1.x, and monotonic as long
+// micro = 2 * PATCH. Even by construction, never zero after 0.0, and monotonic as long
 // as MINOR stays below 1000.
 inline constexpr int kMinorVersion = 2 * (1000 * MAJOR_VERSION_INT + SUB_VERSION_INT);
 inline constexpr int kMicroVersion = 2 * RELEASE_NUMBER_INT;

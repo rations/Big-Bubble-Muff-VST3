@@ -31,8 +31,8 @@ the plug-in's level is therefore the pedal's own. That is loud: a Big Muff has a
 ## Install (pre-built release)
 
 ```bash
-tar -xzf BigBubbleMuff-1.0.0-linux-x86_64.tar.gz
-cd BigBubbleMuff-1.0.0
+tar -xzf BigBubbleMuff-0.1.0-linux-x86_64.tar.gz
+cd BigBubbleMuff-0.1.0
 ./install.sh          # per-user: ~/.vst3 and ~/.lv2; as root: /usr/lib/vst3 and /usr/lib/lv2
 ```
 
@@ -47,7 +47,7 @@ cd BigBubbleMuff-1.0.0
 ### Debian / Devuan package
 
 ```bash
-sudo apt install ./bigbubblemuff_1.0.0_amd64.deb
+sudo apt install ./bigbubblemuff_0.1.0_amd64.deb
 ```
 
 - It installs to `/usr/lib/vst3` and `/usr/lib/lv2`.
