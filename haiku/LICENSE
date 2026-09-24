@@ -1,0 +1,57 @@
+MIT License
+
+Copyright (c) 2026 BigBubbleMuff contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+================================================================================
+Scope
+================================================================================
+
+This licence covers everything under haiku/ — the native Haiku VST3 build of
+BigBubbleMuff. It does NOT cover the Linux build in the repository root: src/
+and the Linux CMake target link JUCE and are therefore GPL-3.0-or-later (see
+../COPYING). The two trees share no code at build time; the circuit sources
+under haiku/source/dsp/ are copies, relicensed by their author, and contain no
+JUCE and no third-party code.
+
+
+================================================================================
+Third-party notices
+================================================================================
+
+VST 3 SDK
+    Copyright (c) 2025 Steinberg Media Technologies GmbH
+    Licensed under the MIT License (see the SDK's LICENSE.txt). Linked
+    statically into the plug-in binary.
+
+Haiku Interface Kit, Translation Kit
+    Copyright (c) 2001-2026 Haiku, Inc.
+    Licensed under the MIT License. Linked as system libraries (libbe,
+    libtranslation).
+
+
+================================================================================
+Trademarks
+================================================================================
+
+"Big Muff" is a trademark of Electro-Harmonix / New Sensor Corp. "VST" is a
+trademark of Steinberg Media Technologies GmbH. This is an independent
+emulation; no affiliation with or endorsement by either company is claimed.

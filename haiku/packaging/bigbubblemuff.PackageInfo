@@ -1,0 +1,29 @@
+name			bigbubblemuff
+version			1.0.0-1
+architecture	x86_64
+summary			"BigBubbleMuff - Big Muff Pi fuzz VST3 plug-in (Haiku)"
+description		"A native VST3 emulation of the Russian \"Bubble Font\" Big Muff Pi
+fuzz/distortion (schematic versions V7C Green/Black Russian and V8 Small Box Black
+Russian). Sustain, Tone and Volume behave like the hardware because the model is a
+nodal solve of the actual schematic netlist, oversampled 4x around the clipping core;
+an Output trim and a pre-gain Gate sit alongside them. Written directly against the
+Interface Kit and the Steinberg VST3 SDK (MIT), with no framework in between.
+Install alongside a VST3 host such as JackDAW."
+packager		"rations <ehqcar@proton.me>"
+vendor			"rations"
+copyrights {
+	"2026 BigBubbleMuff contributors"
+	"2025 Steinberg Media Technologies GmbH"
+}
+licenses {
+	"MIT"
+}
+provides {
+	bigbubblemuff = 1.0.0
+}
+requires {
+	haiku
+}
+urls {
+	"https://github.com/rations/bigpimuffvst3"
+}

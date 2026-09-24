@@ -2,6 +2,8 @@
 /build/
 /build-*/
 cmake-build-*/
+/haiku/build/
+/haiku/build-*/
 
 # Release artefacts (tarballs, .deb) produced by packaging/makedist.sh & makedeb.sh
 /dist/
@@ -11,6 +13,9 @@ cmake-build-*/
 
 # Local agent instructions (not published)
 CLAUDE.md
+RULES.md
+task.md
+/.claude/
 
 # Reference source material — copyrighted schematic image / owner notes.
 # Kept locally for development, never redistributed. Facts live in docs/netlist.md.

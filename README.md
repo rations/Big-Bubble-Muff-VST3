@@ -98,9 +98,39 @@ maintainer with the `MAINTAINER` env var).
 | chowdsp_wdf | v1.0.0  | `36b5775555af21f0f417d2bc866ba7b4b2788614` |
 | VST3 SDK    | 3.8     | local: `/home/human/third_party/vst3sdk`   |
 
+## Haiku (native VST3, no JUCE)
+
+`haiku/` holds a second, independent build of the same pedal for **Haiku OS**: a
+native VST3 written directly against the Steinberg SDK with an Interface Kit
+editor. JUCE has no Haiku backend, so nothing there includes or links it — the
+circuit model is the same C++ and the editor uses the same `gui/*.png` artwork.
+The Standalone app is not part of this port; the plug-in is loaded by a VST3 host
+such as JackDAW.
+
+```bash
+# on Haiku, with VST3-haiku checked out alongside this repository
+cd haiku
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+ninja -C build
+make install                       # -> ~/config/non-packaged/add-ons/media/VST3/
+make validate                      # Steinberg validator
+sh packaging/make-hpkg.sh          # optional .hpkg
+```
+
+From a Linux dev host, `make -C haiku sync remote-build remote-install
+remote-validate` does the same over ssh.
+
 ## License
-**GPLv3-or-later** — see [COPYING](COPYING). JUCE is used under its GPLv3 option;
-chowdsp_wdf is BSD-3; the Steinberg VST3 SDK under its GPLv3-compatible terms.
+The repository is licensed in two parts, because only one of them links JUCE:
+
+- **Everything except `haiku/`** — `src/`, the Linux CMake target, tests and
+  tools — is **GPLv3-or-later**, see [COPYING](COPYING). JUCE is used under its
+  GPLv3 option; chowdsp_wdf is BSD-3; the Steinberg VST3 SDK under its
+  GPLv3-compatible terms.
+- **`haiku/`** is **MIT**, see [haiku/LICENSE](haiku/LICENSE). With JUCE out of
+  the picture there is no copyleft dependency left: the VST3 SDK 3.8.0 is MIT and
+  Haiku's kits are MIT. The circuit sources there are copies of the author's own
+  JUCE-free code, relicensed by their author.
 
 ## Credits / trademarks
 Schematic traced by **Kit Rae** ([BigMuffPage](https://www.bigmuffpage.com)).

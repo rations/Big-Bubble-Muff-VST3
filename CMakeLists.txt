@@ -138,5 +138,12 @@ target_link_libraries(BigBubbleMuff
 option(BBM_BUILD_TESTS "Build the BigBubbleMuff test suite" ON)
 if(BBM_BUILD_TESTS)
   enable_testing()
+  # The Haiku port carries its own framework-free copy of the engine; when that
+  # tree is present the test suite also builds the harness that compares the two.
+  if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/haiku/source/dsp/BigMuffPi.cpp)
+    set(BBM_HAIKU_TREE_PRESENT ON)
+  else()
+    set(BBM_HAIKU_TREE_PRESENT OFF)
+  endif()
   add_subdirectory(tests)
 endif()
