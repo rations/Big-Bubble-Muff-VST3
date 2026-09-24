@@ -95,17 +95,18 @@ tresult PLUGIN_API Processor::setupProcessing(Vst::ProcessSetup &setup) {
   mSwitchStep = 1.0 / std::max(1.0, kSwitchRampMs * 0.001 * mSampleRate);
   mBypassStep = 1.0 / std::max(1.0, kBypassRampMs * 0.001 * mSampleRate);
 
-  // Allocates and settles the circuit (expensive; never on the audio thread).
-  mEngine.prepare(mSampleRate, mMaxBlock);
+  // Controls first, so the circuit's DC operating point is solved at the knobs it
+  // will run at. Allocates and builds the circuit (never on the audio thread).
   pushControls();
+  mEngine.prepare(mSampleRate, mMaxBlock);
   return kResultOk;
 }
 
 tresult PLUGIN_API Processor::setActive(TBool state) {
   if (state) {
     // Come up host-bypassed and ramp in, so activation never opens mid-signal.
-    // The engine itself is NOT reset here: setupProcessing has just settled it,
-    // and resetting would reintroduce the turn-on transient that settle removed.
+    // The engine itself is NOT reset here: setupProcessing has just put the circuit
+    // at its DC operating point, and nothing has run since.
     mBypassMix = 1.0;
     mSwitchMix = mNorm[kSwitchId].load(std::memory_order_relaxed) >= 0.5 ? 1.0 : 0.0;
     for (auto &d : mDryDelay)

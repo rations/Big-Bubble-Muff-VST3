@@ -76,7 +76,9 @@ set(public_sdk_SOURCE_DIR "${VST3_SDK_DIR}/public.sdk")
 set(pluginterfaces_SOURCE_DIR "${VST3_SDK_DIR}/pluginterfaces")
 
 # ---- The circuit engine (std only; shared by the plug-in and the tests) ------
-set(BBM_DSP_SOURCES src/dsp/BigMuffPi.cpp)
+set(BBM_DSP_SOURCES
+  src/dsp/BigMuffPi.cpp
+  src/dsp/circuit/BigMuffCircuit.cpp)
 add_library(bbm_dsp STATIC ${BBM_DSP_SOURCES})
 target_include_directories(bbm_dsp PUBLIC src)
 target_link_libraries(bbm_dsp PRIVATE BigBubbleMuff::hardening BigBubbleMuff::sanitize)
@@ -218,6 +220,11 @@ set_property(TARGET bbm_lv2_ui APPEND PROPERTY
   LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/lv2ui-exports.map")
 
 # The TTL is generated from the real controller and checked against it.
+# Offline renderer for listening and A/B comparisons (build-host only, never shipped).
+add_executable(bbm_render tools/bbm_render.cpp)
+target_compile_options(bbm_render PRIVATE ${BBM_WARNING_FLAGS})
+target_link_libraries(bbm_render PRIVATE bbm_dsp BigBubbleMuff::hardening)
+
 add_executable(bbm_ttlgen tools/bbm_ttlgen.cpp src/plugin/controller.cpp src/plugin/state.cpp)
 target_include_directories(bbm_ttlgen PRIVATE src "${CMAKE_CURRENT_BINARY_DIR}/generated")
 target_link_libraries(bbm_ttlgen PRIVATE sdk bbm_ui BigBubbleMuff::sanitize)

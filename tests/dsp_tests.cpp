@@ -3,17 +3,16 @@
 #include "test.h"
 
 #include "dsp/BigMuffPi.h"
-#include "dsp/DiodeClipper.h"
 #include "dsp/NoiseGate.h"
-#include "dsp/ToneStack.h"
-#include "dsp/TransistorStage.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <complex>
 #include <limits>
 #include <numbers>
 #include <random>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -64,31 +63,9 @@ double dftMagnitude(const std::vector<float> &x, int k) {
   return std::abs(acc);
 }
 
-// Linear RMS gain of the tone stack at a single frequency.
-float measureToneGain(float tone, double fs, double freq) {
-  bbm::ToneStack ts;
-  ts.prepare(fs);
-  ts.setTone(tone);
-  const double inc = kTwoPi * freq / fs;
-  double phase = 0.0;
-  double sumIn = 0.0, sumOut = 0.0;
-  const int warmup = static_cast<int>(fs * 0.05);
-  const int measure = static_cast<int>(fs * 0.2);
-  for (int n = 0; n < warmup + measure; ++n) {
-    const float x = static_cast<float>(std::sin(phase));
-    const float y = ts.process(x);
-    phase += inc;
-    if (n >= warmup) {
-      sumIn += static_cast<double>(x) * x;
-      sumOut += static_cast<double>(y) * y;
-    }
-  }
-  return static_cast<float>(std::sqrt(sumOut / std::max(1.0e-12, sumIn)));
-}
-
 // Ratio of harmonic energy to fundamental energy for a pure sine into the engine.
 // f0 is aligned to a DFT bin (no leakage). Higher = more distortion.
-float measureHarmonicRatio(float sustain, double fs) {
+float measureHarmonicRatio(float sustain, float amp, double fs) {
   constexpr int N = 4096;
   constexpr int k = 20; // fundamental bin
   const double f0 = fs * k / N;
@@ -99,15 +76,16 @@ float measureHarmonicRatio(float sustain, double fs) {
   c.sustain = sustain;
   c.tone = 0.5f;
   c.volume = 1.0f;
+  c.gate = 0.0f; // the plug-in's gate is not the pedal; keep it out of the measurement
   engine.setControls(c);
 
   std::vector<float> buf(N);
   double phase = 0.0;
   for (int i = 0; i < 6; ++i) { // warm up oversampler + smoothers
-    fillSine(buf, fs, f0, 0.3f, phase);
+    fillSine(buf, fs, f0, amp, phase);
     engine.process(buf.data(), buf.data(), buf.size());
   }
-  fillSine(buf, fs, f0, 0.3f, phase);
+  fillSine(buf, fs, f0, amp, phase);
   engine.process(buf.data(), buf.data(), buf.size());
 
   const double fund = dftMagnitude(buf, k);
@@ -117,6 +95,63 @@ float measureHarmonicRatio(float sustain, double fs) {
     harm += m * m;
   }
   return static_cast<float>(std::sqrt(harm) / std::max(1.0e-9, fund));
+}
+
+// In-place radix-2 FFT; x.size() must be a power of two.
+void fft(std::vector<std::complex<double>> &x) {
+  const std::size_t n = x.size();
+  for (std::size_t i = 1, j = 0; i < n; ++i) {
+    std::size_t bit = n >> 1;
+    for (; (j & bit) != 0; bit >>= 1)
+      j ^= bit;
+    j ^= bit;
+    if (i < j)
+      std::swap(x[i], x[j]);
+  }
+  for (std::size_t len = 2; len <= n; len <<= 1) {
+    const std::complex<double> w = std::polar(1.0, -kTwoPi / static_cast<double>(len));
+    for (std::size_t i = 0; i < n; i += len) {
+      std::complex<double> wn = 1.0;
+      for (std::size_t j = 0; j < len / 2; ++j) {
+        const std::complex<double> u = x[i + j];
+        const std::complex<double> v = x[i + j + len / 2] * wn;
+        x[i + j] = u + v;
+        x[i + j + len / 2] = u - v;
+        wn *= w;
+      }
+    }
+  }
+}
+
+// The largest in-band (<= 20 kHz) non-harmonic component, relative to the
+// fundamental, for a 0.1 V sine near `hz` at full Sustain and bright Tone. The
+// fundamental sits on an odd bin of a power-of-two DFT, so every alias of every
+// harmonic lands on a bin that is not a harmonic.
+double worstAliasDb(double fs, double hz) {
+  constexpr int N = 16384;
+  const int k0 = static_cast<int>(hz * N / fs) | 1;
+  const double f0 = k0 * fs / N;
+  bbm::BigMuffPi engine;
+  bbm::Controls c;
+  c.sustain = 1.0f;
+  c.tone = 1.0f;
+  c.volume = 1.0f;
+  c.gate = 0.0f;
+  engine.setControls(c);
+  engine.prepare(fs, N);
+  std::vector<float> buf(N);
+  double phase = 0.0;
+  for (int i = 0; i < 4; ++i) {
+    fillSine(buf, fs, f0, 0.1f, phase);
+    engine.process(buf.data(), buf.data(), buf.size());
+  }
+  std::vector<std::complex<double>> x(buf.begin(), buf.end());
+  fft(x);
+  double worst = 0.0;
+  for (int k = 1; k < N / 2 && k * fs / N <= 20000.0; ++k)
+    if (k % k0 != 0)
+      worst = std::max(worst, std::abs(x[static_cast<std::size_t>(k)]));
+  return 20.0 * std::log10(worst / std::abs(x[static_cast<std::size_t>(k0)]));
 }
 
 } // namespace
@@ -155,12 +190,12 @@ TEST_CASE("BigMuffPi engine", "rejects non-finite input without propagating NaN/
 
 TEST_CASE("BigMuffPi engine", "output stays bounded at full drive") {
   bbm::BigMuffPi engine;
-  engine.prepare(48000.0, 512);
   bbm::Controls c;
   c.sustain = 1.0f;
   c.volume = 1.0f;
-  c.outputTrimDb = 24.0f; // ~15.85x — bounded output must track this, not blow up.
+  c.outputTrimDb = 24.0f;
   engine.setControls(c);
+  engine.prepare(48000.0, 512);
   std::vector<float> buf(512);
   double phase = 0.0;
   float peak = 0.0f;
@@ -169,8 +204,11 @@ TEST_CASE("BigMuffPi engine", "output stays bounded at full drive") {
     engine.process(buf.data(), buf.data(), buf.size());
     peak = std::max(peak, magnitude(buf));
   }
-  // 24 dB gain on a unit sine ~= 16; allow oversampler ripple headroom.
-  CHECK_MSG(peak < 32.0f, "output magnitude implausibly large (runaway?)");
+  // OUT is C2-coupled from Q1's collector, which lives between 0 V and the 9 V rail,
+  // so |OUT| < 9 V; times the +24 dB trim, with headroom for oversampler ripple.
+  bbmtest::log("peak at full drive, +24 dB: " + std::to_string(peak));
+  CHECK_MSG(peak < 1.2f * 9.0f * std::pow(10.0f, 24.0f / 20.0f),
+            "output beyond the supply rail (runaway?)");
 }
 
 TEST_CASE("BigMuffPi engine", "silence in -> silence out") {
@@ -191,12 +229,15 @@ TEST_CASE("BigMuffPi engine", "silence in -> silence out") {
 }
 
 TEST_CASE("BigMuffPi engine", "distortion increases with the Sustain knob") {
-  const float lo = measureHarmonicRatio(0.05f, 48000.0);
-  const float hi = measureHarmonicRatio(1.0f, 48000.0);
+  // A gently picked 1 mV note: at hot inputs both clip stages saturate whatever the
+  // pot says (the real pedal is never clean; checked against ngspice at 1 V), so
+  // the knob's effect on the distortion is measured where it has one.
+  const float lo = measureHarmonicRatio(0.05f, 0.001f, 48000.0);
+  const float hi = measureHarmonicRatio(1.0f, 0.001f, 48000.0);
   bbmtest::log("harmonic ratio: low sustain=" + std::to_string(lo) +
                " high sustain=" + std::to_string(hi));
   CHECK_MSG(std::isfinite(lo) && std::isfinite(hi), "non-finite THD measurement");
-  CHECK_MSG(hi > lo, "more Sustain should produce more harmonic distortion");
+  CHECK_MSG(hi > 10.0f * lo, "more Sustain should produce more harmonic distortion");
   CHECK_MSG(hi > 0.1f, "max Sustain should be strongly distorted (fuzz)");
 }
 
@@ -219,114 +260,6 @@ TEST_CASE("BigMuffPi engine", "process() does not allocate") {
   // A block longer than prepared is walked in chunks, still without allocating.
   engine.process(big.data(), big.data(), big.size());
   CHECK_MSG(guard.allocations() == 0, "process/setControls allocated");
-}
-
-TEST_CASE("Big Muff tone stack", "tone fully CCW favours bass over treble") {
-  const double fs = 48000.0;
-  CHECK_MSG(measureToneGain(0.0f, fs, 100.0) > measureToneGain(0.0f, fs, 5000.0),
-            "CCW tone should attenuate treble vs bass");
-}
-
-TEST_CASE("Big Muff tone stack", "tone fully CW favours treble over bass") {
-  const double fs = 48000.0;
-  CHECK_MSG(measureToneGain(1.0f, fs, 5000.0) > measureToneGain(1.0f, fs, 100.0),
-            "CW tone should attenuate bass vs treble");
-}
-
-TEST_CASE("Big Muff tone stack", "centre tone has a mid-scoop notch") {
-  const double fs = 48000.0;
-  const float low = measureToneGain(0.5f, fs, 120.0);
-  const float mid = measureToneGain(0.5f, fs, 900.0);
-  const float high = measureToneGain(0.5f, fs, 4000.0);
-  bbmtest::log("tone@0.5 gains  low=" + std::to_string(low) +
-               " mid=" + std::to_string(mid) + " high=" + std::to_string(high));
-  CHECK_MSG(mid < low && mid < high, "mids should be scooped vs low and high");
-}
-
-TEST_CASE("Phase B transistor stage", "DC operating point is physically sane") {
-  bbm::TransistorStage stage;
-  stage.prepare(192000.0);
-  const auto op = stage.operatingPoint();
-  bbmtest::log("DC bias  vb=" + std::to_string(op.vb) + " vc=" + std::to_string(op.vc) +
-               " ve=" + std::to_string(op.ve));
-  CHECK_MSG(op.vb > 0.0f && op.vb < bbm::netlist::kSupplyV, "base between rails");
-  CHECK_MSG(op.vc > 0.0f && op.vc < bbm::netlist::kSupplyV, "collector between rails");
-  CHECK_MSG(op.ve > 0.0f && op.ve < bbm::netlist::kSupplyV, "emitter between rails");
-  CHECK_MSG((op.vb - op.ve) > 0.4f && (op.vb - op.ve) < 0.8f,
-            "Vbe should be a forward junction drop");
-  CHECK_MSG(op.vc > 2.0f && op.vc < 7.0f, "collector biases near mid-rail (high gain)");
-  CHECK_MSG((op.vc - op.vb) > 1.0f, "BC junction reverse-biased (not saturated)");
-}
-
-TEST_CASE("Phase B transistor stage", "zero input -> settled (near-zero AC) output") {
-  bbm::TransistorStage stage;
-  stage.prepare(192000.0);
-  float maxAbs = 0.0f;
-  for (int n = 0; n < 4096; ++n)
-    maxAbs = std::max(maxAbs, std::abs(stage.process(0.0f)));
-  CHECK_MSG(maxAbs < 1.0e-3f, "no self-oscillation / drift at rest");
-}
-
-TEST_CASE("Phase B transistor stage",
-          "large drive saturates against the rails, finite/bounded/asymmetric") {
-  const double fs = 192000.0;
-  bbm::TransistorStage stage;
-  stage.prepare(fs);
-  double sumPos = 0.0, sumNeg = 0.0;
-  float peak = 0.0f;
-  double phase = 0.0;
-  const double inc = kTwoPi * 300.0 / fs;
-  bool finite = true;
-  for (int n = 0; n < 8192; ++n) {
-    const float x = 0.8f * static_cast<float>(std::sin(phase));
-    const float y = stage.process(x);
-    phase += inc;
-    finite = finite && std::isfinite(y);
-    peak = std::max(peak, std::abs(y));
-    if (n > 2048) {
-      if (y > 0.0f)
-        sumPos += y;
-      else
-        sumNeg += -y;
-    }
-  }
-  CHECK_MSG(finite, "stage produced non-finite output");
-  CHECK_MSG(peak < 20.0f, "collector swing bounded by the rails");
-  const double asym = std::abs(sumPos - sumNeg) / std::max(1.0e-9, sumPos + sumNeg);
-  bbmtest::log("rail-clip asymmetry = " + std::to_string(asym));
-  CHECK_MSG(asym > 0.01, "rail clipping should be asymmetric (even harmonics)");
-}
-
-TEST_CASE("Antiparallel diode clipper",
-          "clamps large drive to ~a diode drop, stays finite") {
-  bbm::DiodeClipper clip;
-  clip.prepare();
-  float peak = 0.0f;
-  bool finite = true;
-  for (int n = 0; n < 4096; ++n) {
-    const float x = (n % 2 == 0 ? 1.0f : -1.0f) * 12.0f;
-    const float y = clip.process(x);
-    finite = finite && std::isfinite(y);
-    peak = std::max(peak, std::abs(y));
-  }
-  bbmtest::log("diode clamp peak = " + std::to_string(peak));
-  CHECK_MSG(finite, "clipper produced non-finite output");
-  CHECK_MSG(peak > 0.3f && peak < 0.8f, "clamp lands near a diode forward drop");
-}
-
-TEST_CASE("Antiparallel diode clipper", "near-transparent below the knee") {
-  bbm::DiodeClipper clip;
-  clip.prepare();
-  double sumErr = 0.0;
-  const double inc = kTwoPi * 1000.0 / 192000.0;
-  double phase = 0.0;
-  for (int n = 0; n < 2048; ++n) {
-    const float x = 0.05f * static_cast<float>(std::sin(phase));
-    const float y = clip.process(x);
-    phase += inc;
-    sumErr += std::abs(static_cast<double>(y - x));
-  }
-  CHECK_MSG(sumErr / 2048.0 < 0.01, "small signals pass nearly unclipped");
 }
 
 TEST_CASE("Pre-gain noise gate", "passes a loud signal nearly unchanged when open") {
@@ -379,4 +312,34 @@ TEST_CASE("Pre-gain noise gate", "amount = 0 disables the gate (bit-transparent)
   }
   // <= avoids -Wfloat-equal; true only when every sample passed bit-exact.
   CHECK_MSG(maxDiff <= 0.0f, "disabled gate passes the input unchanged");
+}
+
+TEST_CASE("BigMuffPi engine", "in-band aliasing at full Sustain stays below -60 dB") {
+  // Harmonics just above Nyquist fold back only as far as the half-band's
+  // transition band (above 20 kHz), so the audible band is what is checked.
+  for (const auto &[fs, hz] : {std::pair{44100.0, 1000.0}, std::pair{44100.0, 3000.0},
+                               std::pair{44100.0, 6000.0}, std::pair{48000.0, 3000.0}}) {
+    const double db = worstAliasDb(fs, hz);
+    bbmtest::log("alias floor fs=" + std::to_string(int(fs)) + " f0~" +
+                 std::to_string(int(hz)) + ": " + std::to_string(db) + " dB");
+    CHECK(db < -60.0);
+  }
+}
+
+TEST_CASE("BigMuffPi engine", "whole-engine cost at 48 kHz (reported)") {
+  constexpr double fs = 48000.0;
+  bbm::BigMuffPi engine;
+  engine.prepare(fs, 256);
+  std::vector<float> buf(256);
+  double phase = 0.0;
+  double busy = 0.0;
+  for (int b = 0; b < static_cast<int>(fs) / 256; ++b) {
+    fillSine(buf, fs, 196.0, 0.3f, phase);
+    const auto t0 = std::chrono::steady_clock::now();
+    engine.process(buf.data(), buf.data(), buf.size());
+    busy += std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+  }
+  CHECK(allFinite(buf));
+  bbmtest::log("engine cost: " + std::to_string(100.0 * busy) +
+               "% of one core (48 kHz, 4x, full circuit)");
 }

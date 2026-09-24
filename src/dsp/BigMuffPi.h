@@ -35,11 +35,12 @@ public:
   BigMuffPi(BigMuffPi &&) = delete;
   BigMuffPi &operator=(BigMuffPi &&) = delete;
 
-  // Allocates and sizes all state for blocks of up to maxBlock samples, then
-  // settles the circuit. Message thread only.
+  // Allocates and sizes all state for blocks of up to maxBlock samples, and puts the
+  // circuit at its DC operating point for the current controls. Message thread only.
   void prepare(double sampleRate, int maxBlock);
 
-  // Resets filter/oversampler state without reallocating. Real-time-safe.
+  // Back to rest (oversampler cleared, circuit at its DC operating point) without
+  // reallocating. Real-time-safe.
   void reset();
 
   // Processes n mono samples. `in` and `out` may alias. Blocks longer than the

@@ -165,6 +165,27 @@ error from the subset is measured rather than assumed. Measured beta spread is w
 tt=20n`. The engine uses Is = 2.52e-9 A and N = 1.752; Rs, Cjo and tt are omitted.
 N·Vt = 45.3 mV at 300.15 K, which matches Yeh's measured effective Vt for this diode.
 
+**What the subset costs (measured, 2026-09-24).** ngspice-47, 1 kHz 0.1 V sine at sus 0.75 /
+tone 0.5 / vol 1, RMS waveform difference against the subset run with one group of full-card
+parameters switched back on:
+
+| Added back | Difference |
+|---|---|
+| BJT capacitances (CJE, CJC, TF …) | −37.2 dB |
+| Diode CJO + TT | −37.8 dB |
+| Early effect (VAF, VAR) | −46.8 dB |
+| High injection (IKF, IKR) | −64.4 dB |
+| Leakage (ISE, ISC) | −68.7 dB |
+| Ohmic RB / RE / RC | −70.8 dB |
+| Diode RS | −89.5 dB |
+| **Everything (full cards)** | **−33.1 dB** |
+| *For scale:* BF = 800 instead of 458.7 (BC549C hFE range 420–800) | −29.1 dB |
+
+The output RMS is the same to 0.1 dB in every case. The whole subset gap is smaller than the
+difference between two in-spec transistors, so the engine stays on the subset. If a gap is ever
+worth closing, the charge-storage terms matter most (they need charge states in the solver), and
+the Early effect matters far less.
+
 **Thermal voltage:** Vt = kT/q = **25.864917 mV** at T = 300.15 K (27 °C, SPICE's default TNOM and
 TEMP), computed with ngspice-47's own constants (`const.h`: k = 1.38064852e-23, q =
 1.6021766208e-19) so the engine and the reference deck use the identical value.

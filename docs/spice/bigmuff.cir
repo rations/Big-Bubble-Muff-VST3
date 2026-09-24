@@ -6,7 +6,7 @@
 * each clamped to >= 1 ohm. Device models QBM (NPN) and DBM (diode) come from
 * models-em.lib or models-gp.lib, included by the top-level deck.
 *
-* Ports: IN (input jack), OUT (volume wiper), VCC (+9 V rail).
+* Ports: IN (input jack), OUT (volume wiper, loaded by RLOAD 1 Mohm), VCC (+9 V rail).
 .subckt bigmuff IN OUT VCC params: sus=0.75 tone=0.5 vol=0.5
 * --- input --------------------------------------------------------------------
 R2   IN   N1   39k
@@ -65,4 +65,8 @@ C2   C1   V3   0.1u
 * --- VOLUME (R26 100k lin) -------------------------------------------------------
 R26a V3   OUT  {max(1, (1-vol)*100k)}
 R26b OUT  0    {max(1, vol*100k)}
+* --- boundary condition (docs/netlist.md "Model boundary conditions") ---------------
+* The amp input the pedal drives. Part of the model's definition, so every analysis
+* and the engine see the same load.
+RLOAD OUT 0    1Meg
 .ends bigmuff
