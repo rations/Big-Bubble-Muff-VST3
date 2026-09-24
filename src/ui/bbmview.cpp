@@ -26,7 +26,15 @@ constexpr Rect placed(int cx, int cy, int size) {
 }
 } // namespace
 
-BbmView::BbmView(Vst::EditController *editController) : X11PlugView(editController) {
+BbmView::BbmView(Vst::EditController *editController)
+    : BbmView(editController, presets::Store::defaultDir()) {}
+
+BbmView::BbmView(Vst::EditController *editController, std::string presetDir)
+    : X11PlugView(editController),
+      mBar(presets::Store(std::move(presetDir)),
+           {[this] { return mNorm; },
+            [this](const presets::Norms &norm) { applyPreset(norm); },
+            [this](bool wanted) { setKeyboardFocus(wanted); }}) {
   ViewRect size(0, 0, layout::kWidth, layout::kHeight);
   setRect(size);
   for (int i = 0; i < kParamCount; ++i)
@@ -61,6 +69,7 @@ void BbmView::onAttached() {
 
 void BbmView::onRemoved() {
   endDrag();
+  mBar.key(0, KEY_ESCAPE, 0); // abandon an open name field or list
   mImages.purgeScaled();
 }
 
@@ -158,6 +167,10 @@ void BbmView::onMouseDown(int x, int y, int button) {
   float lx = 0.0f, ly = 0.0f;
   if (!toLogical(x, y, lx, ly))
     return;
+  if (mBar.mouseDown(lx, ly)) {
+    invalidate();
+    return;
+  }
 
   // The footswitch acts on the press, the way a switch does.
   if (hitFootswitch(lx, ly)) {
@@ -176,10 +189,14 @@ void BbmView::onMouseDown(int x, int y, int button) {
 }
 
 void BbmView::onMouseMove(int x, int y) {
-  if (mDragKnob < 0)
-    return;
   float lx = 0.0f, ly = 0.0f;
-  toLogical(x, y, lx, ly); // outside the window is still a valid drag position
+  const bool inside = toLogical(x, y, lx, ly);
+  if (mDragKnob < 0) {
+    if (inside && mBar.mouseMove(lx, ly))
+      invalidate();
+    return;
+  }
+  // Outside the window is still a valid drag position.
   // Pressing or releasing Shift mid-drag re-anchors, so the knob never jumps.
   if (fine() != mDragFine) {
     mDragFine = fine();
@@ -204,6 +221,10 @@ void BbmView::onMouseWheel(int x, int y, int delta) {
   float lx = 0.0f, ly = 0.0f;
   if (!toLogical(x, y, lx, ly))
     return;
+  if (mBar.wheel(lx, ly, delta)) {
+    invalidate();
+    return;
+  }
   const int k = hitKnob(lx, ly);
   if (k < 0)
     return;
@@ -225,12 +246,13 @@ void BbmView::onDraw(cairo_t *cr) {
   cairo_translate(cr, mOffX, mOffY);
   cairo_scale(cr, mScale, mScale);
   Canvas c(cr, &mFonts);
-  drawBar(c);
+  mBar.draw(c);
   drawFace(c);
   drawWordmark(c);
   drawKnobs(c);
   drawLamp(c);
   drawFootswitch(c);
+  mBar.drawOverlay(c); // the open list sits above everything
   cairo_restore(cr);
 }
 
@@ -287,11 +309,26 @@ void BbmView::drawFootswitch(Canvas &c) {
               placed(layout::kFootCx, layout::kFootCy, layout::kFootBox));
 }
 
-void BbmView::drawBar(Canvas &c) {
-  c.setColour(layout::kBarFill);
-  c.fillRect(Rect(0.0f, 0.0f, kW, kBar));
-  c.setColour(layout::kBarHairline);
-  c.fillRect(Rect(0.0f, kBar - 1.0f, kW, 1.0f)); // hairline under the strip
+//------------------------------------------------------------------------
+void BbmView::applyPreset(const presets::Norms &norm) {
+  for (const presets::Key &k : presets::kKeys)
+    editParam(k.id, at(norm, k.id));
+}
+
+bool BbmView::onKeyDownNative(char16 key, int16 keyCode, int16 modifiers) {
+  if (!mBar.key(key, keyCode, modifiers))
+    return false;
+  invalidate();
+  return true;
+}
+
+tresult PLUGIN_API BbmView::onKeyDown(char16 key, int16 keyCode, int16 modifiers) {
+  return onKeyDownNative(key, keyCode, modifiers) ? kResultTrue : kResultFalse;
+}
+
+void BbmView::onTick() {
+  if (mBar.tick())
+    invalidate();
 }
 
 } // namespace bbm

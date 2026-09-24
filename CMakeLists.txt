@@ -118,6 +118,8 @@ add_custom_command(
 
 set(BBM_UI_SOURCES
   src/ui/bbmview.cpp
+  src/ui/presetbar.cpp
+  src/presets/presetstore.cpp
   src/platform/x11plugview.cpp
   src/gfx/canvas.cpp
   src/gfx/fontstack.cpp

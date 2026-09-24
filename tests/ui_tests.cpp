@@ -21,6 +21,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
 #include <string>
 
 using namespace Steinberg;
@@ -175,8 +176,13 @@ TEST_CASE("Editor", "paints the whole window offscreen at 1x and 2x") {
     const bbm::ContextPtr cr(cairo_create(surf.get()));
     rig.view->draw(cr.get());
     CHECK(cairo_status(cr.get()) == CAIRO_STATUS_SUCCESS);
+    // Kept for a human to look at: build/tests/scratch/editor-<scale>x.png.
+    const std::string png = std::string(BBM_TEST_SCRATCH) + "/editor-" +
+                            std::to_string(static_cast<int>(s)) + "x.png";
+    std::filesystem::create_directories(BBM_TEST_SCRATCH);
+    CHECK(cairo_surface_write_to_png(surf.get(), png.c_str()) == CAIRO_STATUS_SUCCESS);
     // The preset strip.
-    CHECK(pixel(surf.get(), dev(10, s), dev(10, s)) == bbm::layout::kBarFill);
+    CHECK(pixel(surf.get(), dev(2, s), dev(2, s)) == bbm::layout::kBarFill);
     // The faceplate and the footswitch cap are opaque art, not the background.
     const std::uint32_t face = pixel(surf.get(), dev(228, s), dev(420, s));
     CHECK((face >> 24) == 0xFF);

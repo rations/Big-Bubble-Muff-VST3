@@ -6,6 +6,7 @@ set(BBM_TEST_SOURCES
   dsp_tests.cpp
   plugin_tests.cpp
   ui_tests.cpp
+  preset_tests.cpp
   ${CMAKE_SOURCE_DIR}/src/plugin/processor.cpp
   ${CMAKE_SOURCE_DIR}/src/plugin/controller.cpp
   ${CMAKE_SOURCE_DIR}/src/plugin/state.cpp)
@@ -30,6 +31,10 @@ target_link_libraries(bbm_tests PRIVATE
   bbm_dsp
   BigBubbleMuff::hardening
   BigBubbleMuff::sanitize)
+
+# Preset tests write only below here, never to the user's real preset folder.
+target_compile_definitions(bbm_tests PRIVATE
+  BBM_TEST_SCRATCH="${CMAKE_CURRENT_BINARY_DIR}/scratch")
 
 add_test(NAME bbm_unit_tests COMMAND bbm_tests)
 set_tests_properties(bbm_unit_tests PROPERTIES FAIL_REGULAR_EXPRESSION "FAILED")

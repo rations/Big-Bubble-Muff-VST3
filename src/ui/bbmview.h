@@ -17,14 +17,25 @@
 #include "gfx/image.h"
 #include "platform/x11plugview.h"
 #include "plugin/ids.h"
+#include "presets/presetstore.h"
+#include "ui/presetbar.h"
 
 #include <array>
+#include <string>
 
 namespace bbm {
 
 class BbmView : public X11PlugView {
 public:
+  // Presets live in presets::Store::defaultDir(); the second form roots them
+  // elsewhere (the tests use a scratch directory).
   explicit BbmView(Steinberg::Vst::EditController *editController);
+  BbmView(Steinberg::Vst::EditController *editController, std::string presetDir);
+
+  // The host's keyboard route (IPlugView::onKeyDown). Same handler as the
+  // platform route below.
+  Steinberg::tresult PLUGIN_API onKeyDown(Steinberg::char16 key, Steinberg::int16 keyCode,
+                                          Steinberg::int16 modifiers) override;
 
   // Every route into a parameter passes through the controller's
   // setParamNormalized, which forwards here: automation, a generic UI, a state
@@ -42,6 +53,9 @@ protected:
   void onMouseMove(int x, int y) override;
   void onMouseUp(int x, int y, int button) override;
   void onMouseWheel(int x, int y, int delta) override;
+  bool onKeyDownNative(Steinberg::char16 key, Steinberg::int16 keyCode,
+                       Steinberg::int16 modifiers) override;
+  void onTick() override;
   bool isResizable() const override { return true; }
   void constrainSize(int &w, int &h) const override { constrain(w, h); }
   void onResized(int w, int h) override;
@@ -67,13 +81,15 @@ private:
   void drawKnobs(Canvas &c);
   void drawLamp(Canvas &c);
   void drawFootswitch(Canvas &c);
-  void drawBar(Canvas &c);
+  // Load a preset: each knob as its own host edit gesture.
+  void applyPreset(const presets::Norms &norm);
 
   // Device-pixel size of a logical length at the current scale.
   int devicePx(int logical) const;
 
   FontStack mFonts;
   ImageCache mImages;
+  PresetBar mBar;
 
   std::array<double, kParamCount> mNorm{};
   double mHostBypass = 0.0;
