@@ -1,0 +1,7 @@
+* BigBubbleMuff -- device models, EXACT engine subset (see docs/netlist.md "Device models").
+* SPDX-License-Identifier: MIT
+* Ebers-Moll transport core of the Philips BC547C card: every Gummel-Poon extension is left
+* at its SPICE default (VAF=VAR=inf, IKF=IKR=inf, ISE=ISC=0, RB=RE=RC=0, no capacitances).
+.model QBM NPN(IS=4.679E-14 NF=1.01 NR=1.019 BF=458.7 BR=11.57)
+* onsemi 1N914, Shockley core only (Rs, Cjo, tt omitted).
+.model DBM D(IS=2.52n N=1.752)

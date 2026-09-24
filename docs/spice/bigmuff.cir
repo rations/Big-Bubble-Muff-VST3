@@ -1,0 +1,68 @@
+* BigBubbleMuff -- V7C/V8 Russian "Bubble Font" Big Muff Pi, reference netlist for ngspice.
+* SPDX-License-Identifier: MIT
+*
+* Transcribed from docs/netlist.md (the single source of truth); node names match it.
+* Knobs are 0..1 (0 = fully CCW). Pot split: pin3-wiper = (1-k)*P, wiper-pin1 = k*P,
+* each clamped to >= 1 ohm. Device models QBM (NPN) and DBM (diode) come from
+* models-em.lib or models-gp.lib, included by the top-level deck.
+*
+* Ports: IN (input jack), OUT (volume wiper), VCC (+9 V rail).
+.subckt bigmuff IN OUT VCC params: sus=0.75 tone=0.5 vol=0.5
+* --- input --------------------------------------------------------------------
+R2   IN   N1   39k
+C1   N1   B4   0.1u
+* --- Q4 input booster --------------------------------------------------------
+Q4   C4   B4   E4   QBM
+R14  B4   0    100k
+R9   C4   B4   470k
+C10  C4   B4   470p
+R13  VCC  C4   12k
+R22  E4   0    390
+C4   C4   S3   0.1u
+* --- SUSTAIN (R24 100k lin) + R23 1k ground leg ---------------------------------
+R24a S3   S2   {max(1, (1-sus)*100k)}
+R24b S2   S1   {max(1, sus*100k)}
+R23  S1   0    1k
+C5   S2   N5   0.1u
+R19  N5   B3   10k
+* --- Q3 clipping stage 1 -------------------------------------------------------
+Q3   C3   B3   E3   QBM
+R20  B3   0    100k
+R17  C3   B3   470k
+C12  C3   B3   470p
+C6   B3   D3N  0.047u
+D3   D3N  C3   DBM
+D4   C3   D3N  DBM
+R18  VCC  C3   12k
+R21  E3   0    390
+C13  C3   N13  0.1u
+R12  N13  B2   10k
+* --- Q2 clipping stage 2 -------------------------------------------------------
+Q2   C2   B2   E2   QBM
+R16  B2   0    100k
+R15  C2   B2   470k
+C11  C2   B2   470p
+C7   B2   D2N  0.047u
+D2   D2N  C2   DBM
+D1   C2   D2N  DBM
+R11  VCC  C2   12k
+R10  E2   0    390
+* --- TONE (R25 100k lin) --------------------------------------------------------
+C9   C2   T3   0.0039u
+R5   T3   0    22k
+R8   C2   T1   20k
+C8   T1   0    0.01u
+R25a T3   T2   {max(1, (1-tone)*100k)}
+R25b T2   T1   {max(1, tone*100k)}
+C3   T2   B1   0.1u
+* --- Q1 output stage -----------------------------------------------------------
+Q1   C1   B1   E1   QBM
+R7   VCC  B1   470k
+R3   B1   0    100k
+R6   VCC  C1   10k
+R4   E1   0    2.7k
+C2   C1   V3   0.1u
+* --- VOLUME (R26 100k lin) -------------------------------------------------------
+R26a V3   OUT  {max(1, (1-vol)*100k)}
+R26b OUT  0    {max(1, vol*100k)}
+.ends bigmuff

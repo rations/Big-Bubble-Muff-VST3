@@ -1,0 +1,11 @@
+* DC operating point of the Big Muff (knobs do not affect DC: every pot is AC-coupled).
+.include bigmuff.cir
+.include models-em.lib
+VCC VCC 0 9
+VIN IN 0 0
+XBM IN OUT VCC bigmuff
+.control
+op
+print v(xbm.b4) v(xbm.c4) v(xbm.e4) v(xbm.b3) v(xbm.c3) v(xbm.e3) v(xbm.b2) v(xbm.c2) v(xbm.e2) v(xbm.b1) v(xbm.c1) v(xbm.e1) v(xbm.t1) v(xbm.t3)
+.endc
+.end
