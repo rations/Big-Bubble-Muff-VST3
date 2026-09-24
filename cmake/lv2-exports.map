@@ -1,0 +1,8 @@
+/* BigBubbleMuff — the LV2 DSP module's entire dynamic symbol table.
+   SPDX-License-Identifier: MIT */
+{
+  global:
+    lv2_descriptor;
+  local:
+    *;
+};

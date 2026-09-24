@@ -85,6 +85,10 @@ public:
   //---from Linux::ITimerHandler----
   void PLUGIN_API onTimer() override;
 
+  // The editor's own X window (0 until attached). An LV2 X11 UI hands this id back
+  // to its host as the LV2UI_Widget.
+  ::Window nativeWindow() const { return mWindow; }
+
   //---Interface--------------------
   OBJ_METHODS(X11PlugView, Steinberg::Vst::EditorView)
   DEFINE_INTERFACES

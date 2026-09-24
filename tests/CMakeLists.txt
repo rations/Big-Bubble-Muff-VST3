@@ -38,3 +38,9 @@ target_compile_definitions(bbm_tests PRIVATE
 
 add_test(NAME bbm_unit_tests COMMAND bbm_tests)
 set_tests_properties(bbm_unit_tests PROPERTIES FAIL_REGULAR_EXPRESSION "FAILED")
+
+if(TARGET bbm_lv2check)
+  add_test(NAME bbm_lv2_gate
+    COMMAND bbm_lv2check "${BBM_LV2_SPEC_DIR}" "${BBM_LV2_BUNDLE}")
+  set_tests_properties(bbm_lv2_gate PROPERTIES FAIL_REGULAR_EXPRESSION "FAIL")
+endif()

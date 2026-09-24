@@ -173,6 +173,82 @@ target_link_options(BigBubbleMuff PRIVATE
 set_property(TARGET BigBubbleMuff APPEND PROPERTY
   LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/plugin-exports.map")
 
+# ---- LV2 (the same processor, controller and editor, wrapped) ----------------
+# Two modules in one bundle, as rations-amp's rations.lv2: the DSP half links
+# neither X11 nor cairo, so a headless host can run it.
+pkg_check_modules(BBM_LV2 REQUIRED lv2>=1.18)
+set(BBM_LV2_BUNDLE "${CMAKE_CURRENT_BINARY_DIR}/lv2/BigBubbleMuff.lv2")
+
+set(BBM_LV2_DSP_SOURCES
+  src/lv2/bbm_lv2.cpp
+  src/plugin/processor.cpp
+  src/plugin/state.cpp)
+add_library(bbm_lv2 MODULE ${BBM_LV2_DSP_SOURCES}
+  "${VST3_SDK_DIR}/public.sdk/source/common/memorystream.cpp"
+  "${VST3_SDK_DIR}/public.sdk/source/vst/hosting/parameterchanges.cpp")
+target_link_libraries(bbm_lv2 PRIVATE sdk bbm_dsp
+  BigBubbleMuff::hardening BigBubbleMuff::link_hardening BigBubbleMuff::sanitize)
+set_source_files_properties(${BBM_LV2_DSP_SOURCES} TARGET_DIRECTORY bbm_lv2
+  PROPERTIES COMPILE_OPTIONS "${BBM_WARNING_FLAGS}")
+
+set(BBM_LV2_UI_SOURCES
+  src/lv2/bbm_lv2_ui.cpp
+  src/plugin/controller.cpp
+  src/plugin/state.cpp)
+add_library(bbm_lv2_ui MODULE ${BBM_LV2_UI_SOURCES})
+target_link_libraries(bbm_lv2_ui PRIVATE sdk bbm_ui
+  BigBubbleMuff::hardening BigBubbleMuff::link_hardening BigBubbleMuff::sanitize)
+set_source_files_properties(${BBM_LV2_UI_SOURCES} TARGET_DIRECTORY bbm_lv2_ui
+  PROPERTIES COMPILE_OPTIONS "${BBM_WARNING_FLAGS}")
+
+foreach(_t bbm_lv2 bbm_lv2_ui)
+  target_include_directories(${_t} PRIVATE src "${CMAKE_CURRENT_BINARY_DIR}/generated"
+    ${BBM_LV2_INCLUDE_DIRS})
+  set_target_properties(${_t} PROPERTIES PREFIX "" LIBRARY_OUTPUT_DIRECTORY "${BBM_LV2_BUNDLE}")
+endforeach()
+set_target_properties(bbm_lv2 PROPERTIES OUTPUT_NAME bigbubblemuff)
+set_target_properties(bbm_lv2_ui PROPERTIES OUTPUT_NAME bigbubblemuff_ui)
+target_link_options(bbm_lv2 PRIVATE -Wl,--exclude-libs,ALL
+  "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/cmake/lv2-exports.map")
+target_link_options(bbm_lv2_ui PRIVATE -Wl,--exclude-libs,ALL
+  "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/cmake/lv2ui-exports.map")
+set_property(TARGET bbm_lv2 APPEND PROPERTY
+  LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/lv2-exports.map")
+set_property(TARGET bbm_lv2_ui APPEND PROPERTY
+  LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/lv2ui-exports.map")
+
+# The TTL is generated from the real controller and checked against it.
+add_executable(bbm_ttlgen tools/bbm_ttlgen.cpp src/plugin/controller.cpp src/plugin/state.cpp)
+target_include_directories(bbm_ttlgen PRIVATE src "${CMAKE_CURRENT_BINARY_DIR}/generated")
+target_link_libraries(bbm_ttlgen PRIVATE sdk bbm_ui BigBubbleMuff::sanitize)
+target_compile_options(bbm_ttlgen PRIVATE ${BBM_WARNING_FLAGS})
+add_custom_command(
+  OUTPUT "${BBM_LV2_BUNDLE}/manifest.ttl" "${BBM_LV2_BUNDLE}/bigbubblemuff.ttl"
+  COMMAND "${CMAKE_COMMAND}" -E make_directory "${BBM_LV2_BUNDLE}"
+  COMMAND bbm_ttlgen "${BBM_LV2_BUNDLE}"
+  DEPENDS bbm_ttlgen
+  COMMENT "LV2 bundle: manifest.ttl and bigbubblemuff.ttl (checked against the controller)"
+  VERBATIM)
+add_custom_target(bbm_lv2_bundle ALL
+  DEPENDS "${BBM_LV2_BUNDLE}/manifest.ttl" "${BBM_LV2_BUNDLE}/bigbubblemuff.ttl"
+          bbm_lv2 bbm_lv2_ui)
+
+# The LV2 gate: lilv (the reference loader hosts use) against the built bundle.
+pkg_check_modules(BBM_LILV QUIET IMPORTED_TARGET lilv-0)
+if(BBM_LILV_FOUND)
+  add_executable(bbm_lv2check tools/bbm_lv2check.cpp)
+  target_include_directories(bbm_lv2check PRIVATE src "${CMAKE_CURRENT_BINARY_DIR}/generated")
+  target_link_libraries(bbm_lv2check PRIVATE sdk PkgConfig::BBM_LILV PkgConfig::BBM_GUI ${CMAKE_DL_LIBS}
+    BigBubbleMuff::sanitize)
+  target_compile_options(bbm_lv2check PRIVATE ${BBM_WARNING_FLAGS})
+  # Exports the counting operator new, so the plug-in's allocations resolve to it.
+  set_target_properties(bbm_lv2check PROPERTIES ENABLE_EXPORTS ON)
+  add_dependencies(bbm_lv2check bbm_lv2_bundle)
+  pkg_get_variable(BBM_LV2_SPEC_DIR lv2 lv2dir)
+else()
+  message(STATUS "lilv-0 not found: the LV2 gate (bbm_lv2check) is not built")
+endif()
+
 # ---- Tests -------------------------------------------------------------------
 option(BBM_BUILD_TESTS "Build the BigBubbleMuff test suite" ON)
 if(BBM_BUILD_TESTS)
