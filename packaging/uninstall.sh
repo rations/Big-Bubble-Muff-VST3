@@ -1,25 +1,19 @@
 #!/bin/sh
 # BigBubbleMuff — uninstaller (mirror of install.sh).
-# Copyright (C) 2026  BigBubbleMuff contributors. GPL-3.0-or-later (see COPYING).
+# Copyright (C) 2026  BigBubbleMuff contributors. SPDX-License-Identifier: MIT
 #
-# Removes the VST3 plugin, the standalone binary, its .desktop entry and icon.
-# As root it cleans the system locations; otherwise the per-user ones.
+# Removes the VST3 and LV2 bundles from the current user's ~/.vst3 and ~/.lv2.
+# User presets (~/.config/BigBubbleMuff) are kept.
 set -eu
 
 APP_NAME="BigBubbleMuff"
-BIN_NAME="bigbubblemuff"
 
 if [ "$(id -u)" -eq 0 ]; then
-  VST3_DIR="/usr/lib/vst3"
-  BIN_DIR="/usr/local/bin"
-  DESKTOP_DIR="/usr/share/applications"
-  ICON_DIR="/usr/share/pixmaps"
-else
-  VST3_DIR="$HOME/.vst3"
-  BIN_DIR="$HOME/.local/bin"
-  DESKTOP_DIR="$HOME/.local/share/applications"
-  ICON_DIR="$HOME/.local/share/icons"
+  echo "error: run ./uninstall.sh as yourself, not as root or with sudo." >&2
+  exit 1
 fi
+VST3_DIR="$HOME/.vst3"
+LV2_DIR="$HOME/.lv2"
 
 remove() {
   if [ -e "$1" ]; then
@@ -29,8 +23,6 @@ remove() {
 }
 
 remove "$VST3_DIR/$APP_NAME.vst3"
-remove "$BIN_DIR/$BIN_NAME"
-remove "$DESKTOP_DIR/$BIN_NAME.desktop"
-remove "$ICON_DIR/$BIN_NAME.png"
+remove "$LV2_DIR/$APP_NAME.lv2"
 
 echo "Done."

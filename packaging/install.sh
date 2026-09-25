@@ -1,14 +1,14 @@
 #!/bin/sh
 # BigBubbleMuff — distro-agnostic installer for the pre-built release tarball.
-# Copyright (C) 2026  BigBubbleMuff contributors. GPL-3.0-or-later (see COPYING).
+# Copyright (C) 2026  BigBubbleMuff contributors. SPDX-License-Identifier: MIT
 #
 # POSIX sh on purpose: this must run under dash/busybox on minimal and non-systemd
-# systems (Devuan/sysvinit included). It installs the VST3 plugin and the
-# standalone app, and checks that the required runtime libraries are present —
+# systems (Devuan/sysvinit included). It installs the VST3 and LV2 plug-ins for the
+# current user, and checks that the required runtime libraries are present —
 # mapping any that are missing to the right package for apt, pacman, xbps or dnf.
 #
 # Usage:
-#   ./install.sh            user install (~/.vst3, ~/.local/bin); root → system
+#   ./install.sh            install into ~/.vst3 and ~/.lv2 (run as yourself)
 #   ./install.sh --yes      don't prompt before installing missing packages
 #   ./install.sh --no-deps  skip the runtime-dependency check entirely
 set -eu
@@ -16,12 +16,9 @@ set -eu
 SELF_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
 APP_NAME="BigBubbleMuff"
-BIN_NAME="bigbubblemuff"
 
 VST3_SRC="$SELF_DIR/$APP_NAME.vst3"
-STANDALONE_SRC="$SELF_DIR/$APP_NAME"
-DESKTOP_SRC="$SELF_DIR/$BIN_NAME.desktop"
-ICON_SRC="$SELF_DIR/$BIN_NAME.png"
+LV2_SRC="$SELF_DIR/$APP_NAME.lv2"
 
 ASSUME_YES=0
 CHECK_DEPS=1
@@ -30,37 +27,32 @@ for arg in "$@"; do
     --yes | -y) ASSUME_YES=1 ;;
     --no-deps) CHECK_DEPS=0 ;;
     -h | --help)
-      sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *) echo "Unknown option: $arg" >&2; exit 2 ;;
   esac
 done
 
-# --- destinations: system-wide as root, otherwise per-user --------------------
+# --- destinations: always the current user's own plug-in folders ---------------
+# Run as root, this would bury the plug-ins in /root, where no user's DAW looks.
 if [ "$(id -u)" -eq 0 ]; then
-  VST3_DIR="/usr/lib/vst3"
-  BIN_DIR="/usr/local/bin"
-  DESKTOP_DIR="/usr/share/applications"
-  ICON_DIR="/usr/share/pixmaps"
-else
-  VST3_DIR="$HOME/.vst3"
-  BIN_DIR="$HOME/.local/bin"
-  DESKTOP_DIR="$HOME/.local/share/applications"
-  ICON_DIR="$HOME/.local/share/icons"
+  echo "error: run ./install.sh as yourself, not as root or with sudo." >&2
+  echo "It installs into your own ~/.vst3 and ~/.lv2 (it asks for sudo itself only" >&2
+  echo "if runtime libraries are missing)." >&2
+  exit 1
 fi
+VST3_DIR="$HOME/.vst3"
+LV2_DIR="$HOME/.lv2"
 
 # --- runtime dependency check -------------------------------------------------
-# Each row: <soname>:<apt>:<pacman>:<xbps>:<dnf>
+# Each row: <soname>:<apt>:<pacman>:<xbps>:<dnf>. These are exactly the libraries
+# the editor links (packaging/gate.sh enforces it); the audio half needs only the
+# C/C++ runtime.
 DEP_TABLE="\
-libasound.so.2:libasound2:alsa-lib:alsa-lib:alsa-lib
+libcairo.so.2:libcairo2:cairo:cairo:cairo
 libfreetype.so.6:libfreetype6:freetype2:freetype:freetype
-libfontconfig.so.1:libfontconfig1:fontconfig:fontconfig:fontconfig
-libX11.so.6:libx11-6:libx11:libX11:libX11
-libXext.so.6:libxext6:libxext:libXext:libXext
-libXinerama.so.1:libxinerama1:libxinerama:libXinerama:libXinerama
-libXrandr.so.2:libxrandr2:libxrandr:libXrandr:libXrandr
-libXcursor.so.1:libxcursor1:libxcursor:libXcursor:libXcursor"
+libX11.so.6:libx11-6:libx11:libX11:libX11"
 
 detect_pm() {
   for pm in apt-get pacman xbps-install dnf zypper; do
@@ -155,35 +147,21 @@ if [ "$CHECK_DEPS" -eq 1 ]; then
   check_dependencies || true
 fi
 
-if [ ! -d "$VST3_SRC" ]; then
-  echo "error: $VST3_SRC not found (run this from the extracted release dir)." >&2
-  exit 1
-fi
+for src in "$VST3_SRC" "$LV2_SRC"; do
+  if [ ! -d "$src" ]; then
+    echo "error: $src not found (run this from the extracted release dir)." >&2
+    exit 1
+  fi
+done
 
 echo "Installing VST3 → $VST3_DIR/"
 mkdir -p "$VST3_DIR"
 rm -rf "$VST3_DIR/$APP_NAME.vst3"
 cp -r "$VST3_SRC" "$VST3_DIR/"
 
-if [ -f "$STANDALONE_SRC" ]; then
-  echo "Installing standalone → $BIN_DIR/$BIN_NAME"
-  mkdir -p "$BIN_DIR"
-  cp "$STANDALONE_SRC" "$BIN_DIR/$BIN_NAME"
-  chmod +x "$BIN_DIR/$BIN_NAME"
+echo "Installing LV2  → $LV2_DIR/"
+mkdir -p "$LV2_DIR"
+rm -rf "$LV2_DIR/$APP_NAME.lv2"
+cp -r "$LV2_SRC" "$LV2_DIR/"
 
-  if [ -f "$DESKTOP_SRC" ]; then
-    mkdir -p "$DESKTOP_DIR" "$ICON_DIR"
-    icon_target="$ICON_DIR/$BIN_NAME.png"
-    [ -f "$ICON_SRC" ] && cp "$ICON_SRC" "$icon_target"
-    sed -e "s|@BIN@|$BIN_DIR/$BIN_NAME|g" \
-        -e "s|@ICON@|$icon_target|g" \
-        "$DESKTOP_SRC" > "$DESKTOP_DIR/$BIN_NAME.desktop"
-  fi
-
-  case ":${PATH}:" in
-    *":$BIN_DIR:"*) ;;
-    *) echo "note: $BIN_DIR is not on your PATH; add it or launch from the app menu." ;;
-  esac
-fi
-
-echo "Done. The plugin shows up as '$APP_NAME' in any VST3 host."
+echo "Done. The plug-in shows up as '$APP_NAME' in any VST3 or LV2 host."

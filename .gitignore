@@ -3,7 +3,7 @@
 /build-*/
 cmake-build-*/
 
-# Release artefacts (tarballs, .deb) produced by packaging/makedist.sh & makedeb.sh
+# Release tarballs produced by packaging/makedist.sh
 /dist/
 
 # Plugin bundles
@@ -11,7 +11,7 @@ cmake-build-*/
 
 # Local agent instructions (not published)
 CLAUDE.md
-
+RULES.md
 # Reference source material — copyrighted schematic image / owner notes.
 # Kept locally for development, never redistributed. Facts live in docs/netlist.md.
 /info
@@ -21,6 +21,7 @@ CLAUDE.md
 # Editor / OS cruft
 .cache/
 .vscode/
+.claude/
 .idea/
 compile_commands.json
 *.o

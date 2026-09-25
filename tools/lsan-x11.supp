@@ -1,0 +1,13 @@
+# LeakSanitizer suppressions for the X11 embedding check (bbm_lv2check --x11) only.
+# SPDX-License-Identifier: MIT
+#
+# cairo 1.18.4, src/cairo-xlib-surface-shm.c: _cairo_xlib_display_fini_shm()
+# calls _pqueue_fini(&shm->info), which frees the pending-upload queue's ARRAY but
+# not the cairo_xlib_shm_info_t records (32 bytes each, _cairo_calloc at line 656)
+# still waiting in it for the X server's acknowledgement. Each XCloseDisplay
+# therefore loses the uploads in flight, typically one. Reproduced without any of
+# this project's code (a plain cairo-xlib blit loop), and bounded: with a round
+# trip per frame, as the editor's event loop makes, exactly one record per display
+# close, never one per frame. Distribution cairo carries no symbols, so the frame
+# can only be named by its module.
+leak:libcairo.so.2

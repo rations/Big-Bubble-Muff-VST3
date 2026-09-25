@@ -1,0 +1,19 @@
+/* The complete export list of BigBubbleMuff.so.
+ * SPDX-License-Identifier: MIT
+ *
+ * -fvisibility=hidden keeps our own code out of the dynamic symbol table and
+ * --exclude-libs,ALL keeps the static SDK archives out, but neither reaches
+ * implicitly instantiated libstdc++ templates: libstdc++ declares namespace std
+ * with default visibility, so they are emitted WEAK and exported whatever
+ * -fvisibility says. In a host with other plug-ins loaded, the first module to
+ * export a definition wins it for everyone. A version script filters the table
+ * after everything else, and a VST 3 module needs exactly these three symbols.
+ * (Same file as rations-pedals cmake/plugin-exports.map.) */
+{
+    global:
+        GetPluginFactory;
+        ModuleEntry;
+        ModuleExit;
+    local:
+        *;
+};

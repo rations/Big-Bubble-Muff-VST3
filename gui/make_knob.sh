@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # BigBubbleMuff — square, centred knob asset for clean rotary rotation.
-# Copyright (C) 2026  BigBubbleMuff contributors. GPL-3.0-or-later (see COPYING).
+# Copyright (C) 2026  BigBubbleMuff contributors. SPDX-License-Identifier: MIT
 #
 # dialmufffinal.png is 220x147 (the knob sits off-centre on a wide canvas), which
 # rotates badly about the image centre. This trims to the knob and pads it to a
-# centred square so JUCE can pivot AffineTransform::rotation() on the geometric
-# centre. The pointer points straight up at value 0.5. Run once; commit dialknob.png.
+# centred square so the editor can rotate it about the geometric centre. The pointer points straight up at value 0.5. Run once; commit dialknob.png.
 set -euo pipefail
 cd "$(dirname "$0")"
 

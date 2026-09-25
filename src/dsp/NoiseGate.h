@@ -1,5 +1,5 @@
 // BigBubbleMuff — pre-gain input noise gate (downward expander / hard gate).
-// Copyright (C) 2026  BigBubbleMuff contributors. GPL-3.0-or-later (see COPYING).
+// Copyright (C) 2026  BigBubbleMuff contributors. SPDX-License-Identifier: MIT
 //
 // A real Big Muff has enormous gain (four cascaded common-emitter stages,
 // ~19x each), so it amplifies the noise floor of whatever feeds it by +45..60 dB

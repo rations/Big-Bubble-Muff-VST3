@@ -1,0 +1,8 @@
+/* BigBubbleMuff — the LV2 UI module's entire dynamic symbol table.
+   SPDX-License-Identifier: MIT */
+{
+  global:
+    lv2ui_descriptor;
+  local:
+    *;
+};
